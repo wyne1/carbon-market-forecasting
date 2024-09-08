@@ -268,7 +268,6 @@ class DataPreprocessor:
         df[f'{column_name}_volatility'] = ta.STDDEV(df[column_name], timeperiod=window)
         return df
 
-
 class Plotting:
     @staticmethod
     def plot_history(history: tf.keras.callbacks.History):
