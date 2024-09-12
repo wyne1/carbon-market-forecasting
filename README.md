@@ -7,11 +7,27 @@
 ![NumPy](https://img.shields.io/badge/numpy-%23013243.svg?style=for-the-badge&logo=numpy&logoColor=white)
 ![Matplotlib](https://img.shields.io/badge/Matplotlib-%23ffffff.svg?style=for-the-badge&logo=Matplotlib&logoColor=black)
 
-### Overview
+## Overview
 
 The feature engineering process is designed to enrich the original dataset from carbon market auctions, aiming to enhance the forecasting accuracy of subsequent modeling, particularly using LSTM networks. This comprehensive procedure involves the creation of various derived features that capture different market dynamics, temporal patterns, and interactions between variables.
 
-### Details of Feature Engineering
+## Modeling Approach
+
+A window-based approach is employed for the prediction task, using a specified number of past time steps to forecast future auction prices. An LSTM model, adept at handling sequence data, is trained and validated with these windowed datasets. The forecasting process is sequential: the model predicts a set of future steps, shifts the window forward by the same number of steps, and repeats the prediction, covering the entire test set. The performance is evaluated by comparing actual vs. predicted prices, providing insights into the model’s accuracy and effectiveness in capturing market dynamics.
+
+## Results
+
+### Multi-Step LSTM Model
+<a target="_blank" href="https://cookiecutter-data-science.drivendata.org/">
+    <img src="outputs/LSTM.png" />
+</a>
+
+### Multi-Step Convolution Model
+<a target="_blank" href="https://cookiecutter-data-science.drivendata.org/">
+    <img src="outputs/convmodel.png" />
+</a>
+
+## Details of Feature Engineering
 
 #### Time-Based Enhancements
 - **Day, Month, Quarter**: Extracts calendar-based attributes from the date to capture seasonal and periodic market behaviors.
@@ -42,19 +58,6 @@ The feature engineering process is designed to enrich the original dataset from 
 - **Squared and Ratio Interactions**: These features aim to capture non-linear relationships and more intricate market dynamics.
 - **Normalization**: Standardizes numerical features to have zero mean and unit variance, ensuring that the model treats all features with equal importance during training.
 
-#### Modeling Approach
-
-A window-based approach is employed for the prediction task, using a specified number of past time steps to forecast future auction prices. An LSTM model, adept at handling sequence data, is trained and validated with these windowed datasets. The forecasting process is sequential: the model predicts a set of future steps, shifts the window forward by the same number of steps, and repeats the prediction, covering the entire test set. The performance is evaluated by comparing actual vs. predicted prices, providing insights into the model’s accuracy and effectiveness in capturing market dynamics.
 
 
-## Results
 
-### Multi-Step LSTM Model
-<a target="_blank" href="https://cookiecutter-data-science.drivendata.org/">
-    <img src="outputs/LSTM.png" />
-</a>
-
-### Multi-Step Convolution Model
-<a target="_blank" href="https://cookiecutter-data-science.drivendata.org/">
-    <img src="outputs/convmodel.png" />
-</a>
