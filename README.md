@@ -47,6 +47,14 @@ The feature engineering process is designed to enrich the original dataset from 
 A window-based approach is employed for the prediction task, using a specified number of past time steps to forecast future auction prices. An LSTM model, adept at handling sequence data, is trained and validated with these windowed datasets. The forecasting process is sequential: the model predicts a set of future steps, shifts the window forward by the same number of steps, and repeats the prediction, covering the entire test set. The performance is evaluated by comparing actual vs. predicted prices, providing insights into the model’s accuracy and effectiveness in capturing market dynamics.
 
 
+## Results
+
+### Multi-Step LSTM Model
 <a target="_blank" href="https://cookiecutter-data-science.drivendata.org/">
-    <img src="outputs/sept12-update.png" />
+    <img src="outputs/LSTM.png" />
+</a>
+
+### Multi-Step Convolution Model
+<a target="_blank" href="https://cookiecutter-data-science.drivendata.org/">
+    <img src="outputs/convmodel.png" />
 </a>
