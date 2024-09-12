@@ -5,8 +5,15 @@ import pandas as pd
 import numpy as np
 import tensorflow as tf
 from utils.windowgenerator import WindowGenerator
-import talib as ta
 import matplotlib.pyplot as plt
+import pandas as pd
+import numpy as np
+from scipy import stats
+import talib
+from statsmodels.tsa.seasonal import seasonal_decompose
+from ta.volatility import BollingerBands
+from ta.trend import MACD
+from ta.momentum import RSIIndicator
 
 # class MarketData:
 #     COT_SHEET_NAME: str = "COT-G362"
@@ -238,22 +245,22 @@ class DataPreprocessor:
 
     @staticmethod
     def calculate_ema(df: pd.DataFrame, column_name: str, window: int) -> pd.Series:
-        return ta.EMA(df[column_name], timeperiod=window)
+        return talib.EMA(df[column_name], timeperiod=window)
 
     @staticmethod
     def MA_features(merged_df: pd.DataFrame) -> pd.DataFrame:
-        merged_df['7 MA Premium/discount-settle'] = ta.SMA(merged_df['Premium/discount-settle'], timeperiod=7)
-        merged_df['20 MA Premium/discount-settle'] = ta.SMA(merged_df['Premium/discount-settle'], timeperiod=20)
-        merged_df['7 EMA Premium/discount-settle'] = ta.EMA(merged_df['Premium/discount-settle'], timeperiod=7)
-        merged_df['20 EMA Premium/discount-settle'] = ta.EMA(merged_df['Premium/discount-settle'], timeperiod=20)
-        merged_df['7 MA net_speculators'] = ta.SMA(merged_df['net_speculators'], timeperiod=7)
-        merged_df['20 MA net_speculators'] = ta.SMA(merged_df['net_speculators'], timeperiod=20)
-        merged_df['7 EMA net_speculators'] = ta.EMA(merged_df['net_speculators'], timeperiod=7)
-        merged_df['20 EMA net_speculators'] = ta.EMA(merged_df['net_speculators'], timeperiod=20)
-        merged_df['7 MA spec_long_%'] = ta.SMA(merged_df['spec_long_%'], timeperiod=7)
-        merged_df['20 MA spec_long_%'] = ta.SMA(merged_df['spec_long_%'], timeperiod=20)
-        merged_df['7 EMA spec_long_%'] = ta.EMA(merged_df['spec_long_%'], timeperiod=7)
-        merged_df['20 EMA spec_long_%'] = ta.EMA(merged_df['spec_long_%'], timeperiod=20)
+        merged_df['7 MA Premium/discount-settle'] = talib.SMA(merged_df['Premium/discount-settle'], timeperiod=7)
+        merged_df['20 MA Premium/discount-settle'] = talib.SMA(merged_df['Premium/discount-settle'], timeperiod=20)
+        merged_df['7 EMA Premium/discount-settle'] = talib.EMA(merged_df['Premium/discount-settle'], timeperiod=7)
+        merged_df['20 EMA Premium/discount-settle'] = talib.EMA(merged_df['Premium/discount-settle'], timeperiod=20)
+        merged_df['7 MA net_speculators'] = talib.SMA(merged_df['net_speculators'], timeperiod=7)
+        merged_df['20 MA net_speculators'] = talib.SMA(merged_df['net_speculators'], timeperiod=20)
+        merged_df['7 EMA net_speculators'] = talib.EMA(merged_df['net_speculators'], timeperiod=7)
+        merged_df['20 EMA net_speculators'] = talib.EMA(merged_df['net_speculators'], timeperiod=20)
+        merged_df['7 MA spec_long_%'] = talib.SMA(merged_df['spec_long_%'], timeperiod=7)
+        merged_df['20 MA spec_long_%'] = talib.SMA(merged_df['spec_long_%'], timeperiod=20)
+        merged_df['7 EMA spec_long_%'] = talib.EMA(merged_df['spec_long_%'], timeperiod=7)
+        merged_df['20 EMA spec_long_%'] = talib.EMA(merged_df['spec_long_%'], timeperiod=20)
         return merged_df
 
     @staticmethod
@@ -264,9 +271,147 @@ class DataPreprocessor:
 
     @staticmethod
     def momentum_and_volatility_features(df: pd.DataFrame, column_name: str, window: int) -> pd.DataFrame:
-        df[f'{column_name}_momentum'] = ta.MOM(df[column_name], timeperiod=window)
-        df[f'{column_name}_volatility'] = ta.STDDEV(df[column_name], timeperiod=window)
+        df[f'{column_name}_momentum'] = talib.MOM(df[column_name], timeperiod=window)
+        df[f'{column_name}_volatility'] = talib.STDDEV(df[column_name], timeperiod=window)
         return df
+    
+
+    def engineer_auction_features(df):
+        """
+        Engineer features for auction data.
+        
+        Parameters:
+        df (pd.DataFrame): Input DataFrame with columns ['Date', 'Auc Price', 'Median Price', 
+                        'Cover Ratio', 'Spot Value', 'Auction Spot Diff', 'Median Spot Diff', 
+                        'Premium/discount-settle']
+        
+        Returns:
+        pd.DataFrame: DataFrame with original and engineered features
+        """
+        # Create a copy of the input DataFrame to avoid modifying the original
+        merged_df = df.copy()
+        
+        # Ensure 'Date' is in datetime format
+        merged_df['Date'] = pd.to_datetime(merged_df['Date'])
+        
+        # 1. Time-based features
+        merged_df['DayOfWeek'] = merged_df['Date'].dt.dayofweek
+        merged_df['Month'] = merged_df['Date'].dt.month
+        merged_df['Quarter'] = merged_df['Date'].dt.quarter
+
+        # 2. Rolling statistics
+        for column in ['Auc Price', 'Median Price', 'Spot Value']:
+            merged_df.loc[:, f'{column}_7d_MA'] = merged_df[column].rolling(window=7).mean()
+            merged_df.loc[:, f'{column}_30d_MA'] = merged_df[column].rolling(window=30).mean()
+            merged_df.loc[:, f'{column}_7d_std'] = merged_df[column].rolling(window=7).std()
+            merged_df.loc[:, f'{column}_30d_std'] = merged_df[column].rolling(window=30).std()
+            merged_df.loc[:, f'{column}_7d_EMA'] = merged_df[column].ewm(span=7, adjust=False).mean()
+            merged_df.loc[:, f'{column}_30d_EMA'] = merged_df[column].ewm(span=30, adjust=False).mean()
+
+        # 3. Price change features
+        for column in ['Auc Price', 'Median Price']:
+            merged_df[f'{column}_pct_change'] = merged_df[column].pct_change()
+        merged_df['Spot_Value_ROC'] = merged_df['Spot Value'].diff() / merged_df['Spot Value'].shift(1)
+
+        # 4. Ratio-based features
+        merged_df['Auc_to_Median_Ratio'] = merged_df['Auc Price'] / merged_df['Median Price']
+        merged_df['Auc_to_Spot_Ratio'] = merged_df['Auc Price'] / merged_df['Spot Value']
+
+        # 5. Volatility indicators
+        bb_indicator = BollingerBands(close=merged_df['Auc Price'], window=20, window_dev=2)
+        merged_df['BB_high'] = bb_indicator.bollinger_hband()
+        merged_df['BB_low'] = bb_indicator.bollinger_lband()
+
+        # 6. Trend indicators
+        merged_df['SMA_5'] = merged_df['Auc Price'].rolling(window=5).mean()
+        merged_df['SMA_20'] = merged_df['Auc Price'].rolling(window=20).mean()
+        merged_df['SMA_cross'] = np.where(merged_df['SMA_5'] > merged_df['SMA_20'], 1, 0)
+
+        macd = MACD(close=merged_df['Auc Price'])
+        merged_df['MACD'] = macd.macd()
+        merged_df['MACD_signal'] = macd.macd_signal()
+
+        # 7. Seasonal decomposition (assuming daily data, adjust freq if different)
+        try:
+            decomposition = seasonal_decompose(merged_df['Auc Price'], model='additive', period=30)
+            merged_df['Seasonal'] = decomposition.seasonal
+            merged_df['Trend'] = decomposition.trend
+            merged_df['Residual'] = decomposition.resid
+        except:
+            print("Warning: Seasonal decomposition failed. Skipping this feature.")
+
+        # 8. Lagged features
+        for column in ['Auc Price', 'Median Price', 'Cover Ratio', 'Spot Value']:
+            merged_df[f'{column}_lag1'] = merged_df[column].shift(1)
+            merged_df[f'{column}_lag7'] = merged_df[column].shift(7)
+
+        # 9. Interaction features
+        merged_df['Cover_Premium_Interaction'] = merged_df['Cover Ratio'] * merged_df['Premium/discount-settle']
+        merged_df['Spot_Diff_Interaction'] = merged_df['Auction Spot Diff'] * merged_df['Median Spot Diff']
+
+        # 10. Categorical encodings (assuming no categorical variables in this case)
+
+        # 11. Technical indicators
+        rsi = RSIIndicator(close=merged_df['Auc Price'], window=14)
+        merged_df['RSI'] = rsi.rsi()
+
+        # 12. External factors (not included as we don't have this data)
+
+        # 13. Frequency-domain features (simplified FFT)
+        def fft_feature(series, num_components=3):
+            fft_complex = np.fft.fft(series)
+            fft_magnitudes = np.abs(fft_complex)[:len(series)//2]
+            return fft_magnitudes[:num_components]
+
+        # merged_df['FFT_1'], merged_df['FFT_2'], merged_df['FFT_3'] = zip(*merged_df['Auc Price'].rolling(window=30).apply(fft_feature))
+
+        # 14. Difference features
+        merged_df['Auc_Price_diff1'] = merged_df['Auc Price'].diff()
+        merged_df['Auc_Price_diff2'] = merged_df['Auc Price'].diff().diff()
+
+        # Multiplicative interactions
+        merged_df['Auc_Median_Interaction'] = merged_df['Auc Price'] * merged_df['Median Price']
+        merged_df['Auc_Spot_Interaction'] = merged_df['Auc Price'] * merged_df['Spot Value']
+        merged_df['Cover_Spot_Interaction'] = merged_df['Cover Ratio'] * merged_df['Spot Value']
+        merged_df['AucSpotDiff_MedianSpotDiff_Interaction'] = merged_df['Auction Spot Diff'] * merged_df['Median Spot Diff']
+        
+        # Additive interactions
+        merged_df['Auc_Median_Sum'] = merged_df['Auc Price'] + merged_df['Median Price']
+        merged_df['Auc_Spot_Sum'] = merged_df['Auc Price'] + merged_df['Spot Value']
+        
+        # Ratio interactions
+        merged_df['Auc_to_Median_Spot_Ratio'] = merged_df['Auc Price'] / (merged_df['Median Price'] * merged_df['Spot Value'])
+        
+        # Squared terms (to capture non-linear relationships)
+        merged_df['Auc_Price_Squared'] = merged_df['Auc Price'] ** 2
+        merged_df['Cover_Ratio_Squared'] = merged_df['Cover Ratio'] ** 2
+        
+        # Interaction with time-based features
+        merged_df['Auc_Price_DayOfWeek_Interaction'] = merged_df['Auc Price'] * merged_df['DayOfWeek']
+        merged_df['Auc_Price_Month_Interaction'] = merged_df['Auc Price'] * merged_df['Month']
+        
+        # Interaction with lagged features
+        merged_df['Auc_Price_Lag_Interaction'] = merged_df['Auc Price'] * merged_df['Auc Price_lag1']
+        
+        # Interaction with technical indicators
+        merged_df['Auc_Price_RSI_Interaction'] = merged_df['Auc Price'] * merged_df['RSI']
+        
+        # Complex interactions
+        merged_df['Complex_Interaction_1'] = merged_df['Auc Price'] * merged_df['Cover Ratio'] / merged_df['Spot Value']
+        merged_df['Complex_Interaction_2'] = (merged_df['Auc Price'] - merged_df['Median Price']) * merged_df['Cover Ratio']
+
+        # Handle NaN values created by rolling windows and diff operations
+        merged_df = merged_df.fillna(method='bfill').fillna(method='ffill')
+
+        # Normalize numerical features
+        numerical_columns = merged_df.select_dtypes(include=[np.number]).columns
+        merged_df[numerical_columns] = (merged_df[numerical_columns] - merged_df[numerical_columns].mean()) / merged_df[numerical_columns].std()
+
+        return merged_df
+
+    # Example usage:
+    # engineered_df = engineer_auction_features(original_df)
+    # print(engineered_df.columns)
 
 class Plotting:
     @staticmethod
