@@ -401,7 +401,7 @@ class DataPreprocessor:
         merged_df['Complex_Interaction_2'] = (merged_df['Auc Price'] - merged_df['Median Price']) * merged_df['Cover Ratio']
 
         # Handle NaN values created by rolling windows and diff operations
-        merged_df = merged_df.fillna(method='bfill').fillna(method='ffill')
+        merged_df = merged_df.bfill().ffill()
 
         # Normalize numerical features
         numerical_columns = merged_df.select_dtypes(include=[np.number]).columns

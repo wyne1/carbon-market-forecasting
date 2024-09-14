@@ -6,8 +6,8 @@
 ![Pandas](https://img.shields.io/badge/pandas-%23150458.svg?style=for-the-badge&logo=pandas&logoColor=white)
 ![NumPy](https://img.shields.io/badge/numpy-%23013243.svg?style=for-the-badge&logo=numpy&logoColor=white)
 ![Matplotlib](https://img.shields.io/badge/Matplotlib-%23ffffff.svg?style=for-the-badge&logo=Matplotlib&logoColor=black)
-<br>
-<a href="https://app.commanddash.io/agent/github_NirDiamant_RAG_Techniques"><img src="https://img.shields.io/badge/AI-Code%20Agent-EB9FDA"></a>
+<!-- <br> -->
+<!-- <a href="https://app.commanddash.io/agent/github_NirDiamant_RAG_Techniques"><img src="https://img.shields.io/badge/AI-Code%20Agent-EB9FDA"></a> -->
 
 
 ## Overview
@@ -28,6 +28,11 @@ A window-based approach is employed for the prediction task, using a specified n
 ### Multi-Step Convolution Model
 <a target="_blank" href="https://cookiecutter-data-science.drivendata.org/">
     <img src="outputs/convmodel.png" />
+</a>
+
+### Back Testing Dashboard
+<a target="_blank" href="https://cookiecutter-data-science.drivendata.org/">
+    <img src="outputs/dashboard.png" />
 </a>
 
 ## Details of Feature Engineering
@@ -61,6 +66,13 @@ A window-based approach is employed for the prediction task, using a specified n
 - **Squared and Ratio Interactions**: These features aim to capture non-linear relationships and more intricate market dynamics.
 - **Normalization**: Standardizes numerical features to have zero mean and unit variance, ensuring that the model treats all features with equal importance during training.
 
+<hr>
 
+#### To Do
+``- Package functions in streamlit dashboard``
+
+``- improve logic for model loading and prediction``
+
+``- Model save and load from directory resolve.``
 
 
