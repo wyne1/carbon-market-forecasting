@@ -427,7 +427,7 @@ def main():
 
     initial_balance = st.sidebar.number_input("Initial Balance ($)", value=10000.0, min_value=0.0, step=1000.0)
 
-    take_profit = st.sidebar.slider("Take Profit (%)", min_value=0.0, max_value=100.0, value=5.0, step=0.1)
+    take_profit = st.sidebar.slider("Take Profit (%)", min_value=0.0, max_value=100.0, value=8.0, step=0.1)
     stop_loss = st.sidebar.slider("Stop Loss (%)", min_value=0.0, max_value=100.0, value=2.0, step=0.1)
 
     position_size_fraction = st.sidebar.slider(
@@ -508,13 +508,14 @@ def main():
         # st.header("Trade Log")
         # display_trade_log(trade_log_df)
 
-        col1, col2 = st.columns(2)
+        col1, col2 = st.columns([0.7, 0.3])
         with col1:
             st.subheader("Trade Log")
             display_trade_log(trade_log_df)
 
         with col2:
             st.subheader("Performance Metrics")
+            
             display_performance_metrics(performance_metrics)
 
         col1, col2 = st.columns(2)
@@ -535,7 +536,7 @@ def display_performance_metrics(performance_metrics):
     metrics_df.reset_index(inplace=True)
     metrics_df.rename(columns={'index': 'Metric'}, inplace=True)
 
-    st.table(metrics_df)
+    st.dataframe(metrics_df)
 
 def display_trade_log(trade_log_df):
     st.dataframe(trade_log_df)
