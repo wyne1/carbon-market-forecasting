@@ -68,11 +68,12 @@ A window-based approach is employed for the prediction task, using a specified n
 
 <hr>
 
-#### To Do
-``- Package functions in streamlit dashboard``
-
-``- improve logic for model loading and prediction``
-
-``- Model save and load from directory resolve.``
-
+### To Do / Improvements
+```
+- Package functions in streamlit dashboard
+- improve logic for model loading and prediction
+- Model save and load from directory resolve.
+- Autoformer Testing
+- NIXTLA Model Testing
+```
 
