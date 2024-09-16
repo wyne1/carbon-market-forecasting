@@ -33,7 +33,7 @@ import seaborn as sns
 # Ensure that matplotlib plots display correctly in Streamlit
 from matplotlib.backends.backend_agg import RendererAgg
 import numpy as np
-# _lock = RendererAgg.lock
+_lock = RendererAgg.lock
 # Placeholder for your backtesting function
 
 cot_df, auction_df, eua_df, ta_df, fundamentals_df = MarketData.latest(Path('data'))
