@@ -21,17 +21,17 @@ A window-based approach is employed for the prediction task, using a specified n
 ## Results
 
 ### Multi-Step LSTM Model
-<a target="_blank" href="https://cookiecutter-data-science.drivendata.org/">
+<a target="_blank">
     <img src="outputs/LSTM.png" />
 </a>
 
 ### Multi-Step Convolution Model
-<a target="_blank" href="https://cookiecutter-data-science.drivendata.org/">
+<a target="_blank">
     <img src="outputs/convmodel.png" />
 </a>
 
 ### Back Testing Dashboard
-<a target="_blank" href="https://cookiecutter-data-science.drivendata.org/">
+<a target="_blank">
     <img src="outputs/dashboard.png" />
 </a>
 
