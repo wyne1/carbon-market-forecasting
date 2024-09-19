@@ -316,7 +316,6 @@ class DataPreprocessor:
         # 4. Ratio-based features
         merged_df['Auc_to_Median_Ratio'] = merged_df['Auc Price'] / merged_df['Median Price']
         merged_df['Auc_to_Spot_Ratio'] = merged_df['Auc Price'] / merged_df['Spot Value']
-
         # 5. Volatility indicators
         bb_indicator = BollingerBands(close=merged_df['Auc Price'], window=20, window_dev=2)
         merged_df['BB_high'] = bb_indicator.bollinger_hband()
