@@ -30,6 +30,11 @@ A window-based approach is employed for the prediction task, using a specified n
     <img src="outputs/convmodel.png" />
 </a>
 
+### Conv Model Training Curve
+<a target="_blank">
+    <img src="outputs/training-curve.png" />
+</a>
+
 ### Back Testing Dashboard
 <a target="_blank">
     <img src="outputs/dashboard.png" />
