@@ -80,6 +80,7 @@ A window-based approach is employed for the prediction task, using a specified n
 
 ### To Do / Improvements
 ```
+- Convert Scaled Auc Price to Actual Price
 - Package functions in streamlit dashboard
 - improve logic for model loading and prediction
 - Model save and load from directory resolve.
