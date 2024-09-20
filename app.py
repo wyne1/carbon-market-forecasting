@@ -26,13 +26,12 @@ import talib
 
 
 import streamlit as st
-import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 
 # Ensure that matplotlib plots display correctly in Streamlit
 from matplotlib.backends.backend_agg import RendererAgg
-import numpy as np
+import datetime
 # _lock = RendererAgg.lock
 # Placeholder for your backtesting function
 
@@ -103,8 +102,41 @@ def generate_predictions(model, test_df, input_width, out_steps):
     return predictions_df
 
 
-predictions_df = generate_predictions(multi_conv_model, test_df, INPUT_STEPS, OUT_STEPS)
+def check_gradient(values):
+        gradient = np.gradient(values)
+        return 'positive' if np.all(gradient > 0) else 'negative'
 
+def generate_recent_predictions(model, test_df, input_width, out_steps):
+    features = test_df.columns
+    num_features = len(features)
+    inputs = test_df[-input_width:].values
+    inputs_reshaped = inputs.reshape((1, input_width, num_features))
+    preds = model.predict(inputs_reshaped)
+    
+    predictions = []
+    predictions.append(preds[0])
+    predictions = np.concatenate(predictions, axis=0)
+
+    start_date = test_df.index[-1] + datetime.timedelta(days=1)
+    date_range = pd.date_range(start = start_date, periods = out_steps)
+    recent_preds = pd.DataFrame(predictions, index=date_range, columns=test_df.columns)
+    
+    trend = check_gradient(recent_preds['Auc Price'])
+    recent_preds = pd.concat([test_df.iloc[[-1]], recent_preds])
+    # pred_diff = np.mean(recent_preds.iloc[1:]['Auc Price'].values) - recent_preds.iloc[1]['Auc Price']
+
+    # if pred_diff > 0:
+    #     plt.text(recent_preds.index[0], recent_preds.iloc[0]['Auc Price'], "Buy", fontsize=8, verticalalignment='top')
+    #     plt.plot(recent_preds.index, recent_preds['Auc Price'], color='green', marker='x', label="recent_prediction2", alpha=0.4)
+    # else: 
+    #     plt.text(recent_preds.index[0], recent_preds.iloc[0]['Auc Price'], "Sell", fontsize=8, verticalalignment='top')
+    #     plt.plot(recent_preds.index, recent_preds['Auc Price'], color='red', marker='x', label="recent_prediction2", alpha=0.4)
+
+    return recent_preds, trend
+
+
+predictions_df = generate_predictions(multi_conv_model, test_df, INPUT_STEPS, OUT_STEPS)
+recent_preds, trend = generate_recent_predictions(multi_conv_model, test_df, INPUT_STEPS, OUT_STEPS)
 
 # from your_module import backtest_model_with_metrics
 def backtest_model(model, test_df, input_width, out_steps, initial_balance, take_profit, stop_loss):
@@ -530,6 +562,9 @@ def main():
             # st.subheader("Drawdown Curve")
             # plot_drawdown_curve(balance_history_df)
 
+        st.header("Recent Predictions")
+        plot_recent_predictions(recent_preds, trend, test_df)
+
 def display_performance_metrics(performance_metrics):
     # Convert the metrics dictionary to a DataFrame for better display
     metrics_df = pd.DataFrame.from_dict(performance_metrics, orient='index', columns=['Value'])
@@ -673,6 +708,39 @@ def plot_model_results_with_trades(test_df, predictions_df, trade_log_df):
     ax.grid(True)
     fig.autofmt_xdate()
     st.pyplot(fig)
+
+def plot_recent_predictions(recent_preds, trend, test_df):
+
+    plt.figure(figsize=(10, 4))
+    fig, ax = plt.subplots(figsize=(10, 4))
+
+    # test_df = test_df.iloc[-10:]
+    ax.plot(test_df.index, test_df['Auc Price'], label='Auc Price', color='blue')
+
+    pred_diff = np.mean(recent_preds.iloc[1:]['Auc Price'].values) - recent_preds.iloc[1]['Auc Price']
+
+    grad = round(np.mean(np.gradient(recent_preds['Auc Price'].values[1:])), 4)
+    if pred_diff > 0:
+        ax.text(recent_preds.index[0], recent_preds.iloc[0]['Auc Price'], grad, fontsize=5, verticalalignment='bottom')
+        ax.scatter(recent_preds.index[0], recent_preds.iloc[0]['Auc Price'], color='green', marker='^', s=100)
+        ax.text(recent_preds.index[0], recent_preds.iloc[0]['Auc Price'], "Buy", fontsize=5, verticalalignment='top')
+        ax.plot(recent_preds.index, recent_preds['Auc Price'], color='green', label="Prediction", alpha=0.4, linestyle='dashed')
+    else: 
+        ax.text(recent_preds.index[0], recent_preds.iloc[0]['Auc Price'], grad, fontsize=5, verticalalignment='bottom')
+        ax.scatter(recent_preds.index[0], recent_preds.iloc[0]['Auc Price'], color='red', marker='v', s=100)
+        ax.text(recent_preds.index[0], recent_preds.iloc[0]['Auc Price'], "Sell", fontsize=5, verticalalignment='top')
+        ax.plot(recent_preds.index, recent_preds['Auc Price'], color='red', label="Prediction", alpha=0.4, linestyle='dashed')
+
+    ax.set_title('Recent Predictions', fontsize=6)
+    ax.set_xlabel('Date', fontsize=5)
+    ax.set_ylabel('Price', fontsize=5)
+    ax.xaxis.set_tick_params(labelsize=5)
+    ax.yaxis.set_tick_params(labelsize=5)
+    ax.legend()
+    ax.grid(True)
+    fig.autofmt_xdate()
+    st.pyplot(fig)
+    
 
 def plot_drawdown_curve(balance_history_df):
     # Calculate Drawdown

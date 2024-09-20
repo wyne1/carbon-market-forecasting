@@ -111,7 +111,7 @@ class MarketData:
 
     @classmethod
     def latest(cls, directory: Path) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
-        return cls.version(directory, "2")
+        return cls.version(directory, "4")
 
     @classmethod
     def version(cls, directory: Path, version: str) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
