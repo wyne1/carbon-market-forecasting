@@ -22,22 +22,27 @@ A window-based approach is employed for the prediction task, using a specified n
 
 ### Multi-Step LSTM Model
 <a target="_blank">
-    <img src="outputs/LSTM.png" />
+    <img src="images/LSTM.png" />
 </a>
 
 ### Multi-Step Convolution Model
 <a target="_blank">
-    <img src="outputs/convmodel.png" />
+    <img src="images/convmodel.png" />
 </a>
 
 ### Conv Model Training Curve
 <a target="_blank">
-    <img src="outputs/training-curve.png" />
+    <img src="images/training-curve.png" />
 </a>
 
 ### Back Testing Dashboard
 <a target="_blank">
-    <img src="outputs/dashboard.png" />
+    <img src="images/dashboard.png" />
+</a>
+
+### Recent Predictions
+<a target="_blank">
+    <img src="images/recent_preds.png" />
 </a>
 
 ## Details of Feature Engineering
