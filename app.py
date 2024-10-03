@@ -136,6 +136,8 @@ def generate_recent_predictions(model, test_df, input_width, out_steps):
 
 
 predictions_df = generate_predictions(multi_conv_model, test_df, INPUT_STEPS, OUT_STEPS)
+
+
 recent_preds, trend = generate_recent_predictions(multi_conv_model, test_df, INPUT_STEPS, OUT_STEPS)
 
 # from your_module import backtest_model_with_metrics
@@ -449,6 +451,27 @@ def backtest_model_with_metrics(model, test_df, input_width, out_steps,initial_b
     }
 
     return trade_log_df, performance_metrics, balance_history_df
+
+
+def reverse_normalize(predictions_df: pd.DataFrame, train_mean: float, train_std: float) -> pd.DataFrame:
+    """
+    Reverse normalize the 'Auc Price' in the predictions DataFrame.
+
+    Parameters:
+    - predictions_df: DataFrame containing the predictions with normalized 'Auc Price'
+    - train_mean: Mean of the training data used for normalization
+    - train_std: Standard deviation of the training data used for normalization
+
+    Returns:
+    - DataFrame with the 'Auc Price' reverse normalized
+    """
+    # Reverse normalization formula
+    predictions_df['Auc Price'] = predictions_df['Auc Price'] * train_std + train_mean
+    return predictions_df
+
+predictions_df = reverse_normalize(predictions_df, preprocessor.train_mean['Auc Price'], preprocessor.train_std['Auc Price'])
+recent_preds = reverse_normalize(recent_preds, preprocessor.train_mean['Auc Price'], preprocessor.train_std['Auc Price'])
+
 
 def main():
     st.set_page_config(page_title="Trading Strategy Backtesting Dashboard", layout="wide")
