@@ -217,6 +217,9 @@ class DataPreprocessor:
     def normalize(self, train_df: pd.DataFrame, test_df: pd.DataFrame, val_df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
         self.train_mean = train_df.mean()
         self.train_std = train_df.std()
+
+        print(f"Train DF: {train_df.head()}")
+        print(f"SELF.Train_std: {self.train_std['Auc Price']} | SELF.train_mean: {self.train_mean['Auc Price']}")
         train_df = (train_df - self.train_mean) / self.train_std
         val_df = (val_df - self.train_mean) / self.train_std
         test_df = (test_df - self.train_mean) / self.train_std
@@ -404,7 +407,7 @@ class DataPreprocessor:
 
         # Normalize numerical features
         numerical_columns = merged_df.select_dtypes(include=[np.number]).columns
-        merged_df[numerical_columns] = (merged_df[numerical_columns] - merged_df[numerical_columns].mean()) / merged_df[numerical_columns].std()
+        # merged_df[numerical_columns] = (merged_df[numerical_columns] - merged_df[numerical_columns].mean()) / merged_df[numerical_columns].std()
 
         return merged_df
 

@@ -136,8 +136,6 @@ def generate_recent_predictions(model, test_df, input_width, out_steps):
 
 
 predictions_df = generate_predictions(multi_conv_model, test_df, INPUT_STEPS, OUT_STEPS)
-
-
 recent_preds, trend = generate_recent_predictions(multi_conv_model, test_df, INPUT_STEPS, OUT_STEPS)
 
 # from your_module import backtest_model_with_metrics
@@ -194,6 +192,8 @@ def backtest_model(model, test_df, input_width, out_steps, initial_balance, take
 
         # Determine signal based on predicted mean price
         pred_mean = predictions_df['Auc Price'][idx * out_steps:(idx + 1) * out_steps].mean()
+
+
         signal = 'Buy' if pred_mean > prev_price else 'Sell'
 
         trade_closed = False
@@ -465,12 +465,11 @@ def reverse_normalize(predictions_df: pd.DataFrame, train_mean: float, train_std
     Returns:
     - DataFrame with the 'Auc Price' reverse normalized
     """
-    # Reverse normalization formula
-    predictions_df['Auc Price'] = predictions_df['Auc Price'] * train_std + train_mean
-    return predictions_df
 
-predictions_df = reverse_normalize(predictions_df, preprocessor.train_mean['Auc Price'], preprocessor.train_std['Auc Price'])
-recent_preds = reverse_normalize(recent_preds, preprocessor.train_mean['Auc Price'], preprocessor.train_std['Auc Price'])
+    print(f"Train STD: {train_std} | Train Mean: {train_mean}")
+    # Reverse normalization formula
+    predictions_df['Auc Price'] = (predictions_df['Auc Price'] * train_std) + train_mean
+    return predictions_df
 
 
 def main():
@@ -687,6 +686,9 @@ def plot_model_results_with_trades(test_df, predictions_df, trade_log_df):
 
     # Plot the price data
 
+    print(predictions_df.iloc[:10]['Auc Price'])
+    predictions_df = reverse_normalize(predictions_df, preprocessor.train_mean['Auc Price'], preprocessor.train_std['Auc Price'])
+    test_df = reverse_normalize(test_df, preprocessor.train_mean['Auc Price'], preprocessor.train_std['Auc Price'])
 
     test_df.index = pd.to_datetime(test_df.index)
     predictions_df.index = pd.to_datetime(predictions_df.index)
