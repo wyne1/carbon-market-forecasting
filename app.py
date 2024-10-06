@@ -690,6 +690,18 @@ def plot_model_results_with_trades(test_df, predictions_df, trade_log_df):
     predictions_df = reverse_normalize(predictions_df, preprocessor.train_mean['Auc Price'], preprocessor.train_std['Auc Price'])
     test_df = reverse_normalize(test_df, preprocessor.train_mean['Auc Price'], preprocessor.train_std['Auc Price'])
 
+    # predictions_df['Auc Price'] = (predictions_df['Auc Price'] * train_std) + train_mean≥÷
+
+    print(trade_log_df[['Entry Date', 'Entry Price']])
+    print(trade_log_df[['Entry Date', 'Exit Price']])
+
+    trade_log_df['Entry Price'] = (trade_log_df['Entry Price'] * preprocessor.train_std['Auc Price']) + preprocessor.train_mean['Auc Price']
+    trade_log_df['Exit Price'] = (trade_log_df['Exit Price'] * preprocessor.train_std['Auc Price']) + preprocessor.train_mean['Auc Price']
+
+    print("After")
+    print(trade_log_df[['Entry Date', 'Entry Price']])
+    print(trade_log_df[['Entry Date', 'Exit Price']])
+
     test_df.index = pd.to_datetime(test_df.index)
     predictions_df.index = pd.to_datetime(predictions_df.index)
     trade_log_df['Entry Date'] = pd.to_datetime(trade_log_df['Entry Date'])
@@ -744,6 +756,12 @@ def plot_recent_predictions(recent_preds, trend, test_df):
 
     pred_diff = np.mean(recent_preds.iloc[1:]['Auc Price'].values) - recent_preds.iloc[1]['Auc Price']
 
+    prediction_price = recent_preds.iloc[0]['Auc Price']
+    prediction_price = (prediction_price * preprocessor.train_std['Auc Price']) + preprocessor.train_mean['Auc Price'] 
+
+    print(recent_preds['Auc Price'])
+
+    recent_preds['Auc Price'] = (recent_preds['Auc Price'] * preprocessor.train_std['Auc Price']) + preprocessor.train_mean['Auc Price']
     grad = round(np.mean(np.gradient(recent_preds['Auc Price'].values[1:])), 4)
     if pred_diff > 0:
         ax.text(recent_preds.index[0], recent_preds.iloc[0]['Auc Price'], grad, fontsize=5, verticalalignment='bottom')
