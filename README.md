@@ -79,12 +79,10 @@ A window-based approach is employed for the prediction task, using a specified n
 <hr>
 
 ### To Do / Improvements
-```
-- Convert Scaled Auc Price to Actual Price
-- Package functions in streamlit dashboard
-- improve logic for model loading and prediction
-- Model save and load from directory resolve.
-- Autoformer Testing
-- NIXTLA Model Testing
-```
+- <input type="checkbox" disabled checked /> Convert Scaled Auc Price to Actual Price 
+- <input type="checkbox" disabled /> Package functions in streamlit dashboard
+- <input type="checkbox" disabled /> improve logic for model loading and prediction
+- <input type="checkbox" disabled /> Model save and load from directory resolve.
+- <input type="checkbox" disabled /> Autoformer Testing
+- <input type="checkbox" disabled /> NIXTLA Model Testing
 
