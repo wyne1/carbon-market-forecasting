@@ -77,7 +77,7 @@ multi_conv_model = tf.keras.Sequential([
     tf.keras.layers.Reshape([OUT_STEPS, num_features])
 ])
 
-history = preprocessor.compile_and_fit(multi_conv_model, multi_window, use_early_stopping=True, max_epochs=40)
+history = preprocessor.compile_and_fit(multi_conv_model, multi_window, use_early_stopping=True, max_epochs=50)
 
 
 def generate_predictions(model, test_df, input_width, out_steps):
@@ -753,7 +753,7 @@ def plot_recent_predictions(recent_preds, trend, test_df):
     fig, ax = plt.subplots(figsize=(10, 4))
 
     # test_df = test_df.iloc[-10:]
-    plot_df = test_df.tail(30)
+    plot_df = test_df.tail(90)
 
     ax.plot(plot_df.index, plot_df['Auc Price'], label='Auc Price', color='blue')
 

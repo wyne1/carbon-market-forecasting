@@ -42,7 +42,7 @@ A window-based approach is employed for the prediction task, using a specified n
 
 ### Recent Predictions
 <a target="_blank">
-    <img src="images/recent_preds.png" />
+    <img src="images/recent_preds_new.png" />
 </a>
 
 ## Details of Feature Engineering
