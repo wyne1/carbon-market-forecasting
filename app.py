@@ -77,6 +77,29 @@ multi_conv_model = tf.keras.Sequential([
     tf.keras.layers.Reshape([OUT_STEPS, num_features])
 ])
 
+# multi_conv_model = tf.keras.Sequential([
+#     # Input layer
+#     tf.keras.layers.Input(shape=(None, num_features)),
+    
+#     # 1D Convolutional layers
+#     tf.keras.layers.Conv1D(64, kernel_size=3, activation='relu', padding='same'),
+#     tf.keras.layers.BatchNormalization(),
+#     tf.keras.layers.Conv1D(128, kernel_size=3, activation='relu', padding='same'),
+#     tf.keras.layers.BatchNormalization(),
+    
+#     # LSTM layers
+#     tf.keras.layers.LSTM(128, return_sequences=True),
+#     tf.keras.layers.LSTM(64),
+    
+#     # Dense layers
+#     tf.keras.layers.Dense(64, activation='relu'),
+#     tf.keras.layers.Dropout(0.2),
+#     tf.keras.layers.Dense(OUT_STEPS * num_features),
+    
+#     # Reshape output
+#     tf.keras.layers.Reshape([OUT_STEPS, num_features])
+# ])
+
 history = preprocessor.compile_and_fit(multi_conv_model, multi_window, use_early_stopping=True, max_epochs=50)
 
 
