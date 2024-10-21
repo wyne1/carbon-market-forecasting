@@ -1,10 +1,32 @@
-/__pycache__
+# Python
 __pycache__/
-utils/__pychace__
-utils/__pycache__/
-
+*.py[cod]
+*.pyo
 *.pyc
-/.ipynb_checkpoints
-/.vscode
+*.pyd
+.Python
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# VS Code
+.vscode/
+
+# macOS
 .DS_Store
+
+# Project-specific
 invoices/
+archive/
+
+# Environments
+.env
+.venv
+
