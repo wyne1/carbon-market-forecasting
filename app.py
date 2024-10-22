@@ -1,27 +1,20 @@
 from IPython.display import display
-import IPython
 import pandas as pd
-from pandas import Series
 import numpy as np
 from random import randrange
-
-from matplotlib import pyplot
-import matplotlib.pyplot as plt
 import random
-
 import math
 from typing import Any, List, Dict, AnyStr, Optional
 from pathlib import Path
 from glob import glob
 
 import tensorflow as tf
-import talib
 
 import streamlit as st
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-from matplotlib.backends.backend_agg import RendererAgg
+# from matplotlib.backends.backend_agg import RendererAgg
 import datetime
 
 from utils.dataset import (
