@@ -16,7 +16,9 @@ def display_performance_metrics(performance_metrics):
     st.dataframe(metrics_df)
 
 def display_trade_log(trade_log_df):
-    st.dataframe(trade_log_df)
+    trade_log_df['Entry Date'] = trade_log_df['Entry Date'].dt.date
+    trade_log_df['Exit Date'] = trade_log_df['Exit Date'].dt.date
+    st.dataframe(trade_log_df.round(2))
 
 # def plot_equity_curve(balance_history_df):
 #     fig, ax = plt.subplots(figsize=(10, 5))
@@ -103,8 +105,8 @@ def plot_model_results_with_trades(test_df, predictions_df, trade_log_df, prepro
 
     # predictions_df['Auc Price'] = (predictions_df['Auc Price'] * train_std) + train_mean≥÷
 
-    trade_log_df['Entry Price'] = (trade_log_df['Entry Price'] * preprocessor.train_std['Auc Price']) + preprocessor.train_mean['Auc Price']
-    trade_log_df['Exit Price'] = (trade_log_df['Exit Price'] * preprocessor.train_std['Auc Price']) + preprocessor.train_mean['Auc Price']
+    # trade_log_df['Entry Price'] = (trade_log_df['Entry Price'] * preprocessor.train_std['Auc Price']) + preprocessor.train_mean['Auc Price']
+    # trade_log_df['Exit Price'] = (trade_log_df['Exit Price'] * preprocessor.train_std['Auc Price']) + preprocessor.train_mean['Auc Price']
 
     test_df.index = pd.to_datetime(test_df.index)
     predictions_df.index = pd.to_datetime(predictions_df.index)
