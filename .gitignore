@@ -25,6 +25,7 @@ pip-delete-this-directory.txt
 # Project-specific
 invoices/
 archive/
+data/
 
 # Environments
 .env
