@@ -82,7 +82,7 @@ def plot_equity_curve(balance_history_df):
     # Display the plot in Streamlit
     st.pyplot(fig)
 
-def plot_model_results_with_trades(test_df, predictions_df, trade_log_df, preprocessor):
+def plot_model_results_with_trades(test_df_orig, predictions_df_orig, trade_log_df_orig, preprocessor):
     """
     Plots the actual 'Auc Price', predicted 'Auc Price', and buy/sell signals from the trade log.
 
@@ -99,6 +99,9 @@ def plot_model_results_with_trades(test_df, predictions_df, trade_log_df, prepro
 
     fig, ax = plt.subplots(figsize=(12, 6))
 
+    test_df = test_df_orig.copy()
+    predictions_df = predictions_df_orig.copy()
+    trade_log_df = trade_log_df_orig.copy()
     # Plot the price data
     predictions_df = reverse_normalize(predictions_df, preprocessor.train_mean['Auc Price'], preprocessor.train_std['Auc Price'])
     test_df = reverse_normalize(test_df, preprocessor.train_mean['Auc Price'], preprocessor.train_std['Auc Price'])
@@ -170,13 +173,16 @@ def plot_model_results_with_trades(test_df, predictions_df, trade_log_df, prepro
     fig.autofmt_xdate()
     st.pyplot(fig)
 
-def plot_recent_predictions(recent_preds, trend, test_df, preprocessor):
+def plot_recent_predictions(recent_preds_orig, trend, test_df_orig, preprocessor):
 
     plt.figure(figsize=(10, 4))
     fig, ax = plt.subplots(figsize=(10, 4))
 
     # test_df = test_df.iloc[-10:]
-    plot_df = test_df.tail(90)
+    recent_preds = recent_preds_orig.copy()
+    test_df = test_df_orig.copy()
+    test_df = reverse_normalize(test_df, preprocessor.train_mean['Auc Price'], preprocessor.train_std['Auc Price'])
+    plot_df = test_df.copy().tail(90)
 
     ax.plot(plot_df.index, plot_df['Auc Price'], label='Auc Price', color='blue')
 
