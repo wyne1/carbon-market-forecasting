@@ -79,7 +79,8 @@ def setup_mongodb_connection():
 #     collection.update_one({'date': prediction_date}, {'$set': document}, upsert=True)
 #     return f"Predictions for {prediction_date} saved successfully. Trade direction: {trade_direction}"
 
-def save_recent_predictions(collection, recent_preds, preprocessor):
+def save_recent_predictions(collection, recent_preds_orig, preprocessor):
+    recent_preds = recent_preds_orig.copy()
     prediction_date = recent_preds.index[0]
     
     # Reverse normalize the Auc Price
@@ -99,19 +100,6 @@ def save_recent_predictions(collection, recent_preds, preprocessor):
     collection.update_one({'date': prediction_date}, {'$set': document}, upsert=True)
     return f"Predictions for {prediction_date} saved successfully. Trade direction: {trade_direction}"
 
-def load_and_preprocess_data():
-    cot_df, auction_df, eua_df, ta_df, fundamentals_df = MarketData.latest(Path('data'))
-    cot_df = cot_df.set_index('Date').resample('W', origin='end').mean().reset_index()
-    auction_df = auction_df.set_index('Date').resample('D').mean().reset_index()
-
-    auction_df = auction_df[7:]
-    auction_df.loc[:, 'Premium/discount-settle'] = auction_df['Premium/discount-settle'].ffill()
-    auction_df.loc[:, ['Auc Price', 'Median Price', 'Cover Ratio', 'Spot Value',
-    'Auction Spot Diff', 'Median Spot Diff', 'Premium/discount-settle']] = auction_df[['Auc Price', 'Median Price', 'Cover Ratio', 'Spot Value', 
-                                                                                              'Auction Spot Diff', 'Median Spot Diff', 'Premium/discount-settle']].ffill()
-
-    merged_df = DataPreprocessor.engineer_auction_features(auction_df)
-    return merged_df
 
 def prepare_data(merged_df):
     FEATURES = merged_df.columns.tolist()
@@ -151,36 +139,74 @@ def generate_model_predictions(model, test_df):
     recent_preds, trend = generate_recent_predictions(model, test_df, INPUT_STEPS, OUT_STEPS)
     return predictions_df, recent_preds, trend
 
-merged_df = load_and_preprocess_data()
-train_df, test_df, val_df, preprocessor = prepare_data(merged_df)
-num_features = len(test_df.columns)
-OUT_STEPS = 7
 
-model = create_model(num_features, OUT_STEPS)
-history = train_model(model, train_df, val_df, test_df, preprocessor)
-predictions_df, recent_preds, trend = generate_model_predictions(model, test_df)
+@st.cache_data
+def load_and_preprocess_data():
+    cot_df, auction_df, eua_df, ta_df, fundamentals_df = MarketData.latest(Path('data'))
+    cot_df = cot_df.set_index('Date').resample('W', origin='end').mean().reset_index()
+    auction_df = auction_df.set_index('Date').resample('D').mean().reset_index()
+
+    auction_df = auction_df[7:]
+    auction_df.loc[:, 'Premium/discount-settle'] = auction_df['Premium/discount-settle'].ffill()
+    auction_df.loc[:, ['Auc Price', 'Median Price', 'Cover Ratio', 'Spot Value',
+    'Auction Spot Diff', 'Median Spot Diff', 'Premium/discount-settle']] = auction_df[['Auc Price', 'Median Price', 'Cover Ratio', 'Spot Value', 
+                                                                                              'Auction Spot Diff', 'Median Spot Diff', 'Premium/discount-settle']].ffill()
+
+    merged_df = DataPreprocessor.engineer_auction_features(auction_df)
+    return merged_df
+
+@st.cache_resource
+def prepare_data_and_train_model(merged_df):
+    train_df, test_df, val_df, preprocessor = prepare_data(merged_df)
+    num_features = len(test_df.columns)
+    OUT_STEPS = 7
+    model = create_model(num_features, OUT_STEPS)
+    history = train_model(model, train_df, val_df, test_df, preprocessor)
+    predictions_df, recent_preds, trend = generate_model_predictions(model, test_df)
+    return model, preprocessor, test_df, predictions_df, recent_preds, trend
+
+
+# merged_df = load_and_preprocess_data()
+# train_df, test_df, val_df, preprocessor = prepare_data(merged_df)
+# num_features = len(test_df.columns)
+# OUT_STEPS = 7
+
+# model = create_model(num_features, OUT_STEPS)
+# history = train_model(model, train_df, val_df, test_df, preprocessor)
+# predictions_df, recent_preds, trend = generate_model_predictions(model, test_df)
 
 def main():
     st.set_page_config(page_title="Trading Strategy Backtesting Dashboard", layout="wide")
     st.title("Trading Strategy Backtesting Dashboard")
 
-    st.sidebar.header("Backtesting Parameters")
+    # Load data (this will be cached)
+    merged_df = load_and_preprocess_data()
 
+    # Add Re-Train Model button to sidebar
+
+    # Train model (this will be cached unless the cache was just cleared)
+    model, preprocessor, test_df, predictions_df, recent_preds, trend = prepare_data_and_train_model(merged_df)
+
+    # Sidebar Inputs
+    st.sidebar.header("Backtesting Parameters")
     initial_balance = st.sidebar.number_input("Initial Balance ($)", value=10000.0, min_value=0.0, step=1000.0)
     take_profit = st.sidebar.slider("Take Profit (%)", min_value=0.0, max_value=100.0, value=4.0, step=0.1)
     stop_loss = st.sidebar.slider("Stop Loss (%)", min_value=0.0, max_value=100.0, value=3.0, step=0.1)
-    position_size_fraction = st.sidebar.slider(
-        "Position Size Fraction (%)", min_value=0.0, max_value=100.0, value=100.0, step=1.0
-    )
-    risk_free_rate = st.sidebar.number_input(
-        "Risk-Free Rate (%)", value=1.0, min_value=0.0, max_value=10.0, step=0.1
-    )
+    position_size_fraction = st.sidebar.slider("Position Size Fraction (%)", min_value=0.0, max_value=100.0, value=100.0, step=1.0)
+    risk_free_rate = st.sidebar.number_input("Risk-Free Rate (%)", value=1.0, min_value=0.0, max_value=10.0, step=0.1)
 
     st.sidebar.markdown("---")
     st.sidebar.header("Model and Data Inputs")
     input_width = st.sidebar.number_input("Input Width (Days)", min_value=1, value=7, step=1)
     out_steps = st.sidebar.number_input("Out Steps (Days)", min_value=1, value=7, step=1)
 
+    if st.sidebar.button("Re-Train Model"):
+        with st.spinner("Re-training model..."):
+            # Clear the cache for prepare_data_and_train_model
+            st.cache_resource.clear()
+            st.success("Model cache cleared. The model will be retrained on the next run.")
+        st.rerun()
+        
     if st.sidebar.button("Run Backtest"):
         with st.spinner("Running backtest..."):
             trade_log_df, performance_metrics, balance_history_df = backtest_model_with_metrics(
@@ -193,7 +219,7 @@ def main():
                 stop_loss / 100.0,
                 position_size_fraction=position_size_fraction / 100.0,
                 risk_free_rate=risk_free_rate / 100.0,
-                preprocessor=preprocessor
+                preprocessor=preprocessor  # Pass the preprocessor here
             )
 
         col1, col2 = st.columns([0.7, 0.3])
