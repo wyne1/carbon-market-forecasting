@@ -19,20 +19,20 @@ A window-based approach is employed for the prediction task, using a specified n
 
 ## Results
 
-### Multi-Step LSTM Model
+<!-- ### Multi-Step LSTM Model
 <a target="_blank">
     <img src="images/LSTM.png" />
-</a>
+</a> -->
 
 ### Multi-Step Convolution Model
 <a target="_blank">
     <img src="images/convmodel3.png" />
 </a>
 
-### Conv Model Training Curve
+<!-- ### Conv Model Training Curve
 <a target="_blank">
     <img src="images/training-curve.png" />
-</a>
+</a> -->
 
 ### Back Testing Dashboard
 <a target="_blank">
