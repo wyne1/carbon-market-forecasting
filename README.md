@@ -80,8 +80,8 @@ A window-based approach is employed for the prediction task, using a specified n
 ### To Do / Improvements
 - [x] Convert scaled auction prices back to actual prices.
 - [x] Change TP and SL to percentage of the actual price.
-- [ ] Package functions for integration into the Streamlit dashboard.
-- [ ] Enhance the logic for loading models and making predictions.
-- [ ] Resolve issues related to saving and loading models from the designated directory.
+- [x] Package functions for integration into the Streamlit dashboard.
+- [x] Enhance the logic for loading models and making predictions.
+- [x] Resolve issues related to saving and loading models from the designated directory.
 - [ ] Conduct testing on the Autoformer model.
 
