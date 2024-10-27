@@ -126,11 +126,16 @@ def plot_model_results_with_trades(test_df, predictions_df, trade_log_df, prepro
         signal = trade['Signal']
         entry_price = trade['Entry Price']
         exit_price = trade['Exit Price']
+        return_pct = trade['Return (%)']
 
         # Ensure dates are in the index
         if entry_date not in test_df.index or exit_date not in test_df.index:
             continue
 
+        # Determine if the trade was successful
+        is_successful = return_pct > 0
+        success_color = 'limegreen' if is_successful else 'red'
+        
         if signal == 'Buy':
             # Entry marker
             ax.scatter(entry_date, entry_price, color='green', marker='^', s=100, label='Buy Signal' if idx == 0 else "")
@@ -141,12 +146,26 @@ def plot_model_results_with_trades(test_df, predictions_df, trade_log_df, prepro
             ax.text(entry_date, entry_price, "Sell", fontsize=8, verticalalignment='top', color='red')
 
         # Draw line from entry to exit
-        # ax.plot([entry_date, exit_date], [entry_price, exit_price], linestyle='--', color='gray')
+        # ax.plot([entry_date, exit_date], [entry_price, exit_price], linestyle='--', color=success_color, alpha=0.5)
+        
+        # Add return percentage annotation
+        mid_date = entry_date + (exit_date - entry_date) / 2
+        mid_price = (entry_price + exit_price) / 2
+        ax.text(mid_date, mid_price, f"{return_pct:.2f}%", fontsize=8, 
+                color=success_color, ha='center', va='center',
+                bbox=dict(facecolor='white', edgecolor=success_color, alpha=0.7, boxstyle='round,pad=0.3'))
 
     ax.set_title('Auc Price with Trades')
     ax.set_xlabel('Date')
     ax.set_ylabel('Price')
-    ax.legend()
+    # ax.legend()
+    # Update legend
+    handles, labels = ax.get_legend_handles_labels()
+    handles.extend([plt.Line2D([0], [0], color='limegreen', lw=2, linestyle='--'),
+                    plt.Line2D([0], [0], color='red', lw=2, linestyle='--')])
+    labels.extend(['Successful Trade', 'Unsuccessful Trade'])
+    ax.legend(handles, labels)
+
     ax.grid(True)
     fig.autofmt_xdate()
     st.pyplot(fig)

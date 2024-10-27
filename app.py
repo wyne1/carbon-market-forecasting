@@ -109,8 +109,8 @@ def main():
     st.sidebar.header("Backtesting Parameters")
 
     initial_balance = st.sidebar.number_input("Initial Balance ($)", value=10000.0, min_value=0.0, step=1000.0)
-    take_profit = st.sidebar.slider("Take Profit (%)", min_value=0.0, max_value=100.0, value=3.0, step=0.1)
-    stop_loss = st.sidebar.slider("Stop Loss (%)", min_value=0.0, max_value=100.0, value=2.0, step=0.1)
+    take_profit = st.sidebar.slider("Take Profit (%)", min_value=0.0, max_value=100.0, value=4.0, step=0.1)
+    stop_loss = st.sidebar.slider("Stop Loss (%)", min_value=0.0, max_value=100.0, value=3.0, step=0.1)
     position_size_fraction = st.sidebar.slider(
         "Position Size Fraction (%)", min_value=0.0, max_value=100.0, value=100.0, step=1.0
     )
