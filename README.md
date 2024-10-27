@@ -36,12 +36,12 @@ A window-based approach is employed for the prediction task, using a specified n
 
 ### Back Testing Dashboard
 <a target="_blank">
-    <img src="images/dashboard1.png" />
+    <img src="images/dashboard4.png" />
 </a>
 
-### Recent Predictions
+### Recent Predictions Tab
 <a target="_blank">
-    <img src="images/recent_preds_new.png" />
+    <img src="images/dashboard3.png" />
 </a>
 
 ## Details of Feature Engineering
