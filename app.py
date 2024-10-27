@@ -65,6 +65,14 @@ def main():
     </style>
     """, unsafe_allow_html=True)
 
+    st.markdown("""
+    <style>
+    .stColumn > column {
+        width: 100%;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
     st.title("Trading Strategy Backtesting Dashboard")
 
     # Load data (this will be cached)
