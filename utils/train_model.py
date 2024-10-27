@@ -32,18 +32,7 @@ def create_model(num_features, out_steps):
     ])
     return multi_conv_model
 
-def train_model():
-    merged_df = load_and_preprocess_data()
-
-    # Define features and labels
-    FEATURES = merged_df.columns.tolist()
-    LABEL_COLS = ['Auc Price']
-
-    preprocessor = DataPreprocessor(features=FEATURES, label_columns=LABEL_COLS, input_width=7, label_width=7, shift=1)
-    train_df, test_df, val_df = preprocessor.train_test_data(merged_df)
-    train_df, test_df, val_df = preprocessor.normalize(train_df, test_df, val_df)
-    num_features = len(test_df.columns)
-
+def train_model(model, train_df, val_df, test_df, preprocessor):
     OUT_STEPS = 7
     INPUT_STEPS = 7
     multi_window = WindowGenerator(input_width=INPUT_STEPS,
@@ -51,19 +40,8 @@ def train_model():
                                    label_width=OUT_STEPS,
                                    shift=OUT_STEPS)
 
-    multi_conv_model = create_model(num_features, OUT_STEPS)
-
-    history = preprocessor.compile_and_fit(multi_conv_model, multi_window, use_early_stopping=True, max_epochs=50)
-    
-    # Save the trained model
-    joblib.dump(multi_conv_model, 'trained_model.joblib')
-    
-    # Save preprocessor for later use
-    joblib.dump(preprocessor, 'preprocessor.joblib')
-    
-    print("Model and preprocessor saved successfully.")
-    
-    return multi_conv_model, preprocessor, test_df
+    history = preprocessor.compile_and_fit(model, multi_window, use_early_stopping=True, max_epochs=40)
+    return history
 
 if __name__ == "__main__":
     model, preprocessor, test_df = train_model()
