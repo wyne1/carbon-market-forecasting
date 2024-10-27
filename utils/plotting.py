@@ -13,12 +13,12 @@ def display_performance_metrics(performance_metrics):
     metrics_df.reset_index(inplace=True)
     metrics_df.rename(columns={'index': 'Metric'}, inplace=True)
 
-    st.dataframe(metrics_df)
+    st.dataframe(metrics_df, use_container_width=True)
 
 def display_trade_log(trade_log_df):
     trade_log_df['Entry Date'] = trade_log_df['Entry Date'].dt.date
     trade_log_df['Exit Date'] = trade_log_df['Exit Date'].dt.date
-    st.dataframe(trade_log_df.round(2))
+    st.dataframe(trade_log_df.round(2), use_container_width=True)
 
 # def plot_equity_curve(balance_history_df):
 #     fig, ax = plt.subplots(figsize=(10, 5))
