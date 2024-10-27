@@ -45,7 +45,7 @@ def plot_equity_curve(balance_history_df):
     sns.set_style('whitegrid')
     sns.set_palette('tab10')
 
-    fig, ax1 = plt.subplots(figsize=(12, 6))
+    fig, ax1 = plt.subplots(figsize=(10, 5))
 
     # Plot the equity curve
     sns.lineplot(data=balance_history_df, x='Date', y='Balance', ax=ax1, color='blue', label='Equity Curve')
@@ -95,9 +95,9 @@ def plot_model_results_with_trades(test_df_orig, predictions_df_orig, trade_log_
     - None (plots the figure)
     """
 
-    plt.figure(figsize=(12, 6))
+    plt.figure(figsize=(10, 5))
 
-    fig, ax = plt.subplots(figsize=(12, 6))
+    fig, ax = plt.subplots(figsize=(10, 5))
 
     test_df = test_df_orig.copy()
     predictions_df = predictions_df_orig.copy()
@@ -207,11 +207,11 @@ def plot_recent_predictions(recent_preds_orig, trend, test_df_orig, preprocessor
         ax.text(recent_preds.index[0], recent_preds.iloc[0]['Auc Price'], "Sell", fontsize=5, verticalalignment='top')
         ax.plot(recent_preds.index, recent_preds['Auc Price'], color='red', label="Prediction", alpha=0.4, linestyle='dashed')
 
-    ax.set_title('Recent Predictions', fontsize=6)
-    ax.set_xlabel('Date', fontsize=5)
-    ax.set_ylabel('Price', fontsize=5)
-    ax.xaxis.set_tick_params(labelsize=5)
-    ax.yaxis.set_tick_params(labelsize=5)
+    ax.set_title('Recent Predictions', fontsize=10)
+    ax.set_xlabel('Date', fontsize=8)
+    ax.set_ylabel('Price', fontsize=8)
+    ax.xaxis.set_tick_params(labelsize=7, rotation=180)
+    ax.yaxis.set_tick_params(labelsize=7)
     ax.legend()
     ax.grid(True)
     fig.autofmt_xdate()
