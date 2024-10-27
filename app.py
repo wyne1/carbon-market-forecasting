@@ -62,13 +62,12 @@ def main():
     .stButton > button {
         width: 100%;
     }
-    </style>
-    """, unsafe_allow_html=True)
-
-    st.markdown("""
-    <style>
-    .stColumn > column {
-        width: 100%;
+    .block-container {
+        padding-top: 1rem;
+        padding-bottom: 0rem;
+    }
+    h1 {
+        margin-top: 0rem;
     }
     </style>
     """, unsafe_allow_html=True)

@@ -142,8 +142,6 @@ class DataPreprocessor:
         self.train_mean = train_df.mean()
         self.train_std = train_df.std()
 
-        print(f"Train DF: {train_df.head()}")
-        print(f"SELF.Train_std: {self.train_std['Auc Price']} | SELF.train_mean: {self.train_mean['Auc Price']}")
         train_df = (train_df - self.train_mean) / self.train_std
         val_df = (val_df - self.train_mean) / self.train_std
         test_df = (test_df - self.train_mean) / self.train_std

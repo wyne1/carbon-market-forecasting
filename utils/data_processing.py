@@ -15,7 +15,6 @@ def reverse_normalize(predictions_df: pd.DataFrame, train_mean: float, train_std
     Returns:
     - DataFrame with the 'Auc Price' reverse normalized
     """
-    print(f"Train STD: {train_std} | Train Mean: {train_mean}")
     # Reverse normalization formula
     predictions_df['Auc Price'] = (predictions_df['Auc Price'] * train_std) + train_mean
     return predictions_df

@@ -191,9 +191,6 @@ def plot_recent_predictions(recent_preds_orig, trend, test_df_orig, preprocessor
     prediction_price = recent_preds.iloc[0]['Auc Price']
     prediction_price = (prediction_price * preprocessor.train_std['Auc Price']) + preprocessor.train_mean['Auc Price'] 
 
-    print("RECENT PREDICTIONS")
-    print(recent_preds['Auc Price'])
-
     recent_preds['Auc Price'] = (recent_preds['Auc Price'] * preprocessor.train_std['Auc Price']) + preprocessor.train_mean['Auc Price']
     grad = round(np.mean(np.gradient(recent_preds['Auc Price'].values[1:])), 4)
     if pred_diff > 0:
