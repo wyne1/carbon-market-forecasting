@@ -46,3 +46,11 @@ def generate_recent_predictions(model, test_df, input_width, out_steps):
 def check_gradient(values):
     gradient = np.gradient(values)
     return 'positive' if np.all(gradient > 0) else 'negative'
+
+
+def generate_model_predictions(model, test_df):
+    INPUT_STEPS = 7
+    OUT_STEPS = 7
+    predictions_df = generate_predictions(model, test_df, INPUT_STEPS, OUT_STEPS)
+    recent_preds, trend = generate_recent_predictions(model, test_df, INPUT_STEPS, OUT_STEPS)
+    return predictions_df, recent_preds, trend

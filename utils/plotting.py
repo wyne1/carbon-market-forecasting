@@ -184,7 +184,7 @@ def plot_recent_predictions(recent_preds_orig, trend, test_df_orig, preprocessor
     test_df = reverse_normalize(test_df, preprocessor.train_mean['Auc Price'], preprocessor.train_std['Auc Price'])
     plot_df = test_df.copy().tail(90)
 
-    ax.plot(plot_df.index, plot_df['Auc Price'], label='Auc Price', color='blue')
+    ax.plot(plot_df.index, plot_df['Auc Price'], label='Auc Price', color='tomato', marker='o', markersize=3)
 
     pred_diff = np.mean(recent_preds.iloc[1:]['Auc Price'].values) - recent_preds.iloc[1]['Auc Price']
 
