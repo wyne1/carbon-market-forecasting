@@ -26,7 +26,7 @@ A window-based approach is employed for the prediction task, using a specified n
 
 ### Multi-Step Convolution Model
 <a target="_blank">
-    <img src="images/convmodel2.png" />
+    <img src="images/convmodel3.png" />
 </a>
 
 ### Conv Model Training Curve
