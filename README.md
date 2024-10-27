@@ -36,7 +36,7 @@ A window-based approach is employed for the prediction task, using a specified n
 
 ### Back Testing Dashboard
 <a target="_blank">
-    <img src="images/dashboard.png" />
+    <img src="images/dashboard1.png" />
 </a>
 
 ### Recent Predictions
