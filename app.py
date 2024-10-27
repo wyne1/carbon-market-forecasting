@@ -169,6 +169,7 @@ def main():
                              .map(color_trade_direction, subset=['Trade Direction'])
                              .highlight_max(axis=1, subset=df.columns[3:])
                              .format({'Pred Diff': '{:.4f}'})
+                             , use_container_width=True
                 )
             else:
                 st.info("No stored predictions found.")
