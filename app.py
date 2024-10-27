@@ -118,7 +118,7 @@ def main():
                     preprocessor=preprocessor
                 )
 
-            col1, col2 = st.columns([0.7, 0.3])
+            col1, col2 = st.columns([0.65, 0.35])
             with col1:
                 st.subheader("Trade Log")
                 display_trade_log(trade_log_df)
@@ -127,7 +127,7 @@ def main():
                 st.subheader("Performance Metrics")
                 display_performance_metrics(performance_metrics)
 
-            col1, col2 = st.columns(2)
+            col1, col2 = st.columns([0.5, 0.5])
 
             with col1:
                 st.subheader("Equity Curve")
@@ -168,7 +168,7 @@ def main():
                              .map(color_trade_direction, subset=['Trade Direction'])
                              .highlight_max(axis=1, subset=df.columns[3:])
                              .format({'Pred Diff': '{:.4f}'})
-                             , use_container_width=True
+                             , use_container_width=True, hide_index=True
                 )
             else:
                 st.info("No stored predictions found.")

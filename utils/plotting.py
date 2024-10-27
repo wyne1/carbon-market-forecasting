@@ -13,7 +13,7 @@ def display_performance_metrics(performance_metrics):
     metrics_df.reset_index(inplace=True)
     metrics_df.rename(columns={'index': 'Metric'}, inplace=True)
 
-    st.dataframe(metrics_df, use_container_width=True)
+    st.dataframe(metrics_df, use_container_width=True, hide_index=True)
 
 def display_trade_log(trade_log_df):
     trade_log_df['Entry Date'] = trade_log_df['Entry Date'].dt.date
@@ -179,7 +179,8 @@ def plot_recent_predictions(recent_preds_orig, trend, test_df_orig, preprocessor
     fig, ax = plt.subplots(figsize=(10, 4))
 
     # test_df = test_df.iloc[-10:]
-    recent_preds = recent_preds_orig.copy()
+    recent_preds = recent_preds_orig.round(3).copy()
+
     test_df = test_df_orig.copy()
     test_df = reverse_normalize(test_df, preprocessor.train_mean['Auc Price'], preprocessor.train_std['Auc Price'])
     plot_df = test_df.copy().tail(90)
