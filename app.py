@@ -17,17 +17,9 @@ import seaborn as sns
 # from matplotlib.backends.backend_agg import RendererAgg
 import datetime
 
-from utils.dataset import (
-    MarketData,
-    DataPreprocessor,
-    Plotting
-)
+from utils.dataset import MarketData, DataPreprocessor, Plotting
 from utils.windowgenerator import WindowGenerator, compile_and_fit
-
-from utils.backtesting import (
-    backtest_model_with_metrics,
-    generate_dummy_data
-)
+from utils.backtesting import backtest_model_with_metrics, generate_dummy_data
 from utils.plotting import (
     display_performance_metrics,
     display_trade_log,
@@ -38,8 +30,74 @@ from utils.plotting import (
 )
 from utils.data_processing import reverse_normalize
 from utils.prediction_utils import generate_predictions, generate_recent_predictions, check_gradient
+import pymongo
+from pymongo import MongoClient
+from datetime import datetime
 
 
+client = MongoClient('mongodb://localhost:27017/')  # Replace with your MongoDB connection string
+db = client['carbon_market_predictions']  # Replace with your database name
+collection = db['recent_predictions']
+
+def get_stored_predictions(collection):
+    stored_predictions = list(collection.find().sort("date", -1).limit(10))  # Get the 10 most recent entries
+    return stored_predictions
+
+def setup_mongodb_connection():
+    client = MongoClient('mongodb://localhost:27017/')  # Replace with your MongoDB connection string
+    db = client['carbon_market_predictions']  # Replace with your database name
+    collection = db['recent_predictions']
+    return collection
+
+# def save_recent_predictions(collection, recent_preds):
+#     prediction_date = recent_preds.index[0]
+#     auc_price_predictions = recent_preds['Auc Price'].tolist()
+    
+#     document = {
+#         'date': prediction_date,
+#         'predictions': auc_price_predictions
+#     }
+    
+#     collection.update_one({'date': prediction_date}, {'$set': document}, upsert=True)
+#     return f"Predictions for {prediction_date} saved successfully."
+
+# def save_recent_predictions(collection, recent_preds):
+#     prediction_date = recent_preds.index[0]
+#     auc_price_predictions = recent_preds['Auc Price'].tolist()
+    
+#     # Calculate the trade direction
+#     pred_diff = np.mean(recent_preds.iloc[1:]['Auc Price'].values) - recent_preds.iloc[1]['Auc Price']
+#     trade_direction = 'Buy' if pred_diff > 0 else 'Sell'
+    
+#     document = {
+#         'date': prediction_date,
+#         'predictions': auc_price_predictions,
+#         'trade_direction': trade_direction,
+#         'pred_diff': float(pred_diff)  # Convert to float for MongoDB storage
+#     }
+    
+#     collection.update_one({'date': prediction_date}, {'$set': document}, upsert=True)
+#     return f"Predictions for {prediction_date} saved successfully. Trade direction: {trade_direction}"
+
+def save_recent_predictions(collection, recent_preds, preprocessor):
+    prediction_date = recent_preds.index[0]
+    
+    # Reverse normalize the Auc Price
+    auc_price_predictions = (recent_preds['Auc Price'] * preprocessor.train_std['Auc Price']) + preprocessor.train_mean['Auc Price']
+    
+    # Calculate the trade direction using the reverse normalized values
+    pred_diff = np.mean(auc_price_predictions.iloc[1:].values) - auc_price_predictions.iloc[1]
+    trade_direction = 'Buy' if pred_diff > 0 else 'Sell'
+    
+    document = {
+        'date': prediction_date,
+        'predictions': auc_price_predictions.tolist(),
+        'trade_direction': trade_direction,
+        'pred_diff': float(pred_diff)
+    }
+    
+    collection.update_one({'date': prediction_date}, {'$set': document}, upsert=True)
+    return f"Predictions for {prediction_date} saved successfully. Trade direction: {trade_direction}"
 
 def load_and_preprocess_data():
     cot_df, auction_df, eua_df, ta_df, fundamentals_df = MarketData.latest(Path('data'))
@@ -161,5 +219,46 @@ def main():
         st.header("Recent Predictions")
         plot_recent_predictions(recent_preds, trend, test_df, preprocessor)
 
+    collection = setup_mongodb_connection()
+    st.header("Stored Predictions")
+    with st.spinner("Loading stored predictions..."):
+        stored_predictions = get_stored_predictions(collection)
+        if stored_predictions:
+            data = []
+            for pred in stored_predictions:
+                # Convert pred_diff to float, use 0.0 if conversion fails
+                try:
+                    pred_diff = float(pred['pred_diff'])
+                except (ValueError, TypeError):
+                    pred_diff = 0.0
+                
+                row = [pred['date'], pred['trade_direction'], pred_diff] + pred['predictions']
+                data.append(row)
+            
+            columns = ['Date', 'Trade Direction', 'Pred Diff'] + [f'Day {i+1}' for i in range(len(stored_predictions[0]['predictions']))]
+            df = pd.DataFrame(data, columns=columns)
+            df['Date'] = pd.to_datetime(df['Date']).dt.date  # Convert to date for better display
+            
+            # Apply color coding to the Trade Direction column
+            def color_trade_direction(val):
+                color = 'green' if val == 'Buy' else 'red'
+                return f'color: {color}'
+            
+            st.dataframe(df.style
+                         .map(color_trade_direction, subset=['Trade Direction'])
+                         .highlight_max(axis=1, subset=df.columns[3:])
+                         .format({'Pred Diff': '{:.4f}'})
+            )
+        else:
+            st.info("No stored predictions found.")
+
+    st.header("Save Predictions")
+    if st.button("Save Recent Predictions"):
+        collection = setup_mongodb_connection()
+        save_message = save_recent_predictions(collection, recent_preds, preprocessor)
+        st.success(save_message)
+
+    print(f"Recent Predictions: {recent_preds}")
 if __name__ == "__main__":
+    collection = setup_mongodb_connection()
     main()
