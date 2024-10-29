@@ -20,44 +20,6 @@ def display_trade_log(trade_log_df):
     trade_log_df['Exit Date'] = trade_log_df['Exit Date'].dt.date
     st.dataframe(trade_log_df.round(2), use_container_width=True)
 
-# def plot_equity_curve(balance_history_df):
-#     fig, ax = plt.subplots(figsize=(10, 5))
-#     sns.lineplot(data=balance_history_df, x='Date', y='Balance', ax=ax)
-#     ax.set_title('Equity Curve')
-#     ax.set_xlabel('Date')
-#     ax.set_ylabel('Account Balance ($)')
-#     ax.grid(True)
-#     st.pyplot(fig)
-# def plot_ensemble_predictions(ensemble_predictions, test_df, preprocessor):
-#     plt.figure(figsize=(10, 5))
-#     fig, ax = plt.subplots(figsize=(10, 5))
-    
-#     # Plot historical data
-#     test_df = reverse_normalize(test_df.copy(), 
-#                               preprocessor.train_mean['Auc Price'], 
-#                               preprocessor.train_std['Auc Price'])
-#     plot_df = test_df.copy().tail(90)
-#     ax.plot(plot_df.index, plot_df['Auc Price'], 
-#             label='Actual Price', color='black', marker='o', markersize=3)
-    
-#     # Plot predictions from each model
-#     colors = plt.cm.cool(np.linspace(0, 1, 15))
-#     for i, (preds, trend) in enumerate(ensemble_predictions):
-#         normalized_preds = (preds['Auc Price'] * preprocessor.train_std['Auc Price']) + preprocessor.train_mean['Auc Price']
-#         ax.plot(preds.index, normalized_preds, 
-#                 label=f'Model {i+1} ({trend})', 
-#                 color=colors[i % len(colors)],
-#                 linestyle='dashed',
-#                 alpha=0.6)
-    
-#     ax.set_title('Ensemble Model Predictions')
-#     ax.set_xlabel('Date')
-#     ax.set_ylabel('Price')
-#     # ax.legend()
-#     # ax.grid(True)
-#     fig.autofmt_xdate()
-#     st.pyplot(fig)
-
 def plot_ensemble_predictions(ensemble_predictions, test_df, preprocessor):
     plt.figure(figsize=(12, 6))
     fig, ax = plt.subplots(figsize=(12, 6))
