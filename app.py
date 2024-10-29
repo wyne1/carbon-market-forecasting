@@ -11,8 +11,9 @@ from datetime import datetime
 
 from utils.dataset import MarketData, DataPreprocessor
 from utils.data_processing import prepare_data
-from utils.plotting import display_performance_metrics, display_trade_log, plot_equity_curve, plot_model_results_with_trades, plot_recent_predictions
-from utils.model_utils import create_model, train_model, generate_model_predictions
+from utils.plotting import (display_performance_metrics, display_trade_log, plot_equity_curve, 
+                            plot_model_results_with_trades, plot_recent_predictions, plot_ensemble_predictions)
+from utils.model_utils import create_model, train_model, generate_model_predictions, train_ensemble_models
 from utils.mongodb_utils import get_stored_predictions, setup_mongodb_connection, save_recent_predictions
 from utils.backtesting import backtest_model_with_metrics
 
@@ -173,6 +174,19 @@ def main():
             save_message = save_recent_predictions(collection, recent_preds, preprocessor)
             st.success(save_message)
 
+    with tab3:
+        st.header("Ensemble Predictions")
+        num_models = st.number_input("Number of Models", min_value=2, max_value=30, value=3)
+        
+        if st.button("Train Ensemble"):
+            with st.spinner("Training ensemble models..."):
+                ensemble_predictions, preprocessor, test_df = train_ensemble_models(merged_df, num_models)
+                plot_ensemble_predictions(ensemble_predictions, test_df, preprocessor)
+                
+                # Calculate consensus
+                buy_votes = sum(1 for _, trend in ensemble_predictions if trend == 'positive')
+                sell_votes = num_models - buy_votes
+                st.write(f"Consensus: {buy_votes} Buy votes vs {sell_votes} Sell votes")
 if __name__ == "__main__":
     collection = setup_mongodb_connection()
     main()

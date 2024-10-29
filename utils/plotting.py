@@ -28,6 +28,79 @@ def display_trade_log(trade_log_df):
 #     ax.set_ylabel('Account Balance ($)')
 #     ax.grid(True)
 #     st.pyplot(fig)
+# def plot_ensemble_predictions(ensemble_predictions, test_df, preprocessor):
+#     plt.figure(figsize=(10, 5))
+#     fig, ax = plt.subplots(figsize=(10, 5))
+    
+#     # Plot historical data
+#     test_df = reverse_normalize(test_df.copy(), 
+#                               preprocessor.train_mean['Auc Price'], 
+#                               preprocessor.train_std['Auc Price'])
+#     plot_df = test_df.copy().tail(90)
+#     ax.plot(plot_df.index, plot_df['Auc Price'], 
+#             label='Actual Price', color='black', marker='o', markersize=3)
+    
+#     # Plot predictions from each model
+#     colors = plt.cm.cool(np.linspace(0, 1, 15))
+#     for i, (preds, trend) in enumerate(ensemble_predictions):
+#         normalized_preds = (preds['Auc Price'] * preprocessor.train_std['Auc Price']) + preprocessor.train_mean['Auc Price']
+#         ax.plot(preds.index, normalized_preds, 
+#                 label=f'Model {i+1} ({trend})', 
+#                 color=colors[i % len(colors)],
+#                 linestyle='dashed',
+#                 alpha=0.6)
+    
+#     ax.set_title('Ensemble Model Predictions')
+#     ax.set_xlabel('Date')
+#     ax.set_ylabel('Price')
+#     # ax.legend()
+#     # ax.grid(True)
+#     fig.autofmt_xdate()
+#     st.pyplot(fig)
+
+def plot_ensemble_predictions(ensemble_predictions, test_df, preprocessor):
+    plt.figure(figsize=(12, 6))
+    fig, ax = plt.subplots(figsize=(12, 6))
+    
+    # Plot historical data
+    test_df = reverse_normalize(test_df.copy(), 
+                              preprocessor.train_mean['Auc Price'], 
+                              preprocessor.train_std['Auc Price'])
+    plot_df = test_df.copy().tail(90)
+    ax.plot(plot_df.index, plot_df['Auc Price'], 
+            label='Actual Price', color='black', marker='o', markersize=3)
+    
+    # Create a DataFrame to store all predictions for averaging
+    first_pred = ensemble_predictions[0][0]
+    all_predictions = np.zeros((len(ensemble_predictions), len(first_pred)))
+    
+    # Plot predictions from each model and collect predictions for averaging
+    colors = plt.cm.cool(np.linspace(0, 1, 50))
+    for i, (preds, trend) in enumerate(ensemble_predictions):
+        normalized_preds = (preds['Auc Price'] * preprocessor.train_std['Auc Price']) + preprocessor.train_mean['Auc Price']
+        all_predictions[i] = normalized_preds
+        ax.plot(preds.index, normalized_preds, 
+                label=f'Model {i+1} ({trend})', 
+                color=colors[i % len(colors)],
+                linestyle='dashed',
+                alpha=0.3)
+    
+    # Calculate and plot average prediction
+    avg_predictions = np.mean(all_predictions, axis=0)
+    ax.plot(first_pred.index, avg_predictions,
+            label='Average Prediction',
+            color='red',
+            linewidth=1,
+            linestyle='solid',
+            alpha=0.8)
+    
+    ax.set_title('Ensemble Model Predictions')
+    ax.set_xlabel('Date')
+    ax.set_ylabel('Price')
+    # ax.legend()
+    # ax.grid(True)
+    fig.autofmt_xdate()
+    st.pyplot(fig)
 
 def plot_equity_curve(balance_history_df):
 
