@@ -9,18 +9,13 @@ from pathlib import Path
 from pymongo import MongoClient
 from datetime import datetime
 
-from utils.train_model import create_model, train_model
-from utils.dataset import MarketData, DataPreprocessor, prepare_data
-from utils.backtesting import backtest_model_with_metrics
-from utils.plotting import (
-    display_performance_metrics,
-    display_trade_log,
-    plot_equity_curve,
-    plot_model_results_with_trades,
-    plot_recent_predictions
-)
-from utils.prediction_utils import generate_model_predictions
+from utils.dataset import MarketData, DataPreprocessor
+from utils.data_processing import prepare_data
+from utils.plotting import display_performance_metrics, display_trade_log, plot_equity_curve, plot_model_results_with_trades, plot_recent_predictions
+from utils.model_utils import create_model, train_model, generate_model_predictions
 from utils.mongodb_utils import get_stored_predictions, setup_mongodb_connection, save_recent_predictions
+from utils.backtesting import backtest_model_with_metrics
+
 # MongoDB setup
 
 client = MongoClient('mongodb://localhost:27017/')
@@ -76,7 +71,6 @@ def main():
 
     # Load data (this will be cached)
     merged_df = load_and_preprocess_data()
-
     # Train model (this will be cached unless the cache was just cleared)
     model, preprocessor, test_df, predictions_df, recent_preds, trend = prepare_data_and_train_model(merged_df)
 
@@ -128,7 +122,6 @@ def main():
                 display_performance_metrics(performance_metrics)
 
             col1, col2 = st.columns([0.5, 0.5])
-
             with col1:
                 st.subheader("Equity Curve")
                 plot_equity_curve(balance_history_df)

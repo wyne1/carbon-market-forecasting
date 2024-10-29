@@ -16,14 +16,7 @@ from ta.trend import MACD
 from ta.momentum import RSIIndicator
 
 
-def prepare_data(merged_df):
-    FEATURES = merged_df.columns.tolist()
-    LABEL_COLS = ['Auc Price']
 
-    preprocessor = DataPreprocessor(features=FEATURES, label_columns=LABEL_COLS, input_width=7, label_width=7, shift=1)
-    train_df, test_df, val_df = preprocessor.train_test_data(merged_df)
-    train_df, test_df, val_df = preprocessor.normalize(train_df, test_df, val_df)
-    return train_df, test_df, val_df, preprocessor
 
 class MarketData:
     COT_SHEET_NAME: str = "COT-G362"
