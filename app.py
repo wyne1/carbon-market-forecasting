@@ -12,7 +12,7 @@ from datetime import datetime
 from utils.dataset import MarketData, DataPreprocessor
 from utils.data_processing import prepare_data
 from utils.plotting import (display_performance_metrics, display_trade_log, plot_equity_curve, 
-                            plot_model_results_with_trades, plot_recent_predictions, plot_ensemble_predictions)
+                            plot_model_results_with_trades, plot_recent_predictions, plot_ensemble_predictions, plot_ensemble_predictions_realtime)
 from utils.model_utils import create_model, train_model, generate_model_predictions, train_ensemble_models
 from utils.mongodb_utils import get_stored_predictions, setup_mongodb_connection, save_recent_predictions
 from utils.backtesting import backtest_model_with_metrics
@@ -179,14 +179,23 @@ def main():
         num_models = st.number_input("Number of Models", min_value=2, max_value=30, value=3)
         
         if st.button("Train Ensemble"):
-            with st.spinner("Training ensemble models..."):
-                ensemble_predictions, preprocessor, test_df = train_ensemble_models(merged_df, num_models)
-                plot_ensemble_predictions(ensemble_predictions, test_df, preprocessor)
-                
-                # Calculate consensus
-                buy_votes = sum(1 for _, trend in ensemble_predictions if trend == 'positive')
-                sell_votes = num_models - buy_votes
-                st.write(f"Consensus: {buy_votes} Buy votes vs {sell_votes} Sell votes")
+            # Create a placeholder for the plot
+            plot_container = st.empty()
+            predictions_list = []
+            
+            # Progress bar
+            progress_bar = st.progress(0)
+            
+            # Train models and update plot
+            for i, (preds, trend, preprocessor, test_df) in enumerate(train_ensemble_models(merged_df, num_models)):
+                predictions_list.append((preds, trend))
+                plot_ensemble_predictions_realtime(predictions_list, test_df, preprocessor, plot_container)
+                progress_bar.progress((i + 1) / num_models)
+            
+            # Calculate final consensus
+            buy_votes = sum(1 for _, trend in predictions_list if trend == 'positive')
+            sell_votes = num_models - buy_votes
+            st.write(f"Final Consensus: {buy_votes} Buy votes vs {sell_votes} Sell votes")
 if __name__ == "__main__":
     collection = setup_mongodb_connection()
     main()

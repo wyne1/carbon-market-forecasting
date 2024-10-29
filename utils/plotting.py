@@ -5,7 +5,72 @@ import seaborn as sns
 import streamlit as st
 from utils.data_processing import reverse_normalize
 import matplotlib.dates as mdates
+from utils.mongodb_utils import setup_mongodb_connection, get_stored_predictions
 
+def plot_recent_predictions(recent_preds_orig, trend, test_df_orig, preprocessor):
+    plt.figure(figsize=(10, 4))
+    fig, ax = plt.subplots(figsize=(10, 4))
+
+    recent_preds = recent_preds_orig.round(3).copy()
+    test_df = test_df_orig.copy()
+    test_df = reverse_normalize(test_df, preprocessor.train_mean['Auc Price'], preprocessor.train_std['Auc Price'])
+    plot_df = test_df.copy().tail(60)
+
+    # Plot historical data
+    ax.plot(plot_df.index, plot_df['Auc Price'], label='Auc Price', color='tomato', marker='o', markersize=3)
+
+    # Plot current prediction
+    pred_diff = np.mean(recent_preds.iloc[1:]['Auc Price'].values) - recent_preds.iloc[1]['Auc Price']
+    prediction_price = recent_preds.iloc[0]['Auc Price']
+    prediction_price = (prediction_price * preprocessor.train_std['Auc Price']) + preprocessor.train_mean['Auc Price'] 
+    recent_preds['Auc Price'] = (recent_preds['Auc Price'] * preprocessor.train_std['Auc Price']) + preprocessor.train_mean['Auc Price']
+    
+    # Plot stored predictions from MongoDB
+    collection = setup_mongodb_connection()
+    stored_predictions = get_stored_predictions(collection)
+    
+    # if stored_predictions:
+    #     for i, pred in enumerate(stored_predictions):
+    #         print("PRED LENGTH : ",len(pred['predictions']))
+    #         print(pred)
+    #         pred_dates = [pred['date']] + [pred['date'] + pd.Timedelta(days=i+1) for i in range(len(pred['predictions'])-1)]
+    #         color = 'lightgreen' if pred['trade_direction'] == 'Buy' else 'lightcoral'
+    #         ax.plot(pred_dates, pred['predictions'], 
+    #                color=color, 
+    #                alpha=0.5,
+    #                linestyle='dashed',
+    #                label=f"Stored Pred {pred['date'].date()}")
+            
+    #         # Add marker for trade direction
+    #         marker = '^' if pred['trade_direction'] == 'Buy' else 'v'
+    #         ax.scatter(pred_dates[0], pred['predictions'][0], 
+    #                   color=color, 
+    #                   marker=marker, 
+    #                   s=50,
+    #                   alpha=0.3)
+
+    # Plot current prediction on top
+    grad = round(np.mean(np.gradient(recent_preds['Auc Price'].values[1:])), 4)
+    if pred_diff > 0:
+        ax.text(recent_preds.index[0], recent_preds.iloc[0]['Auc Price'], grad, fontsize=5, verticalalignment='bottom')
+        ax.scatter(recent_preds.index[0], recent_preds.iloc[0]['Auc Price'], color='green', marker='^', s=100)
+        ax.text(recent_preds.index[0], recent_preds.iloc[0]['Auc Price'], "Buy", fontsize=5, verticalalignment='top')
+        ax.plot(recent_preds.index, recent_preds['Auc Price'], color='green', label="Current Prediction", alpha=0.8, linestyle='dashed')
+    else: 
+        ax.text(recent_preds.index[0], recent_preds.iloc[0]['Auc Price'], grad, fontsize=5, verticalalignment='bottom')
+        ax.scatter(recent_preds.index[0], recent_preds.iloc[0]['Auc Price'], color='red', marker='v', s=100)
+        ax.text(recent_preds.index[0], recent_preds.iloc[0]['Auc Price'], "Sell", fontsize=5, verticalalignment='top')
+        ax.plot(recent_preds.index, recent_preds['Auc Price'], color='red', label="Current Prediction", alpha=0.8, linestyle='dashed')
+
+    ax.set_title('Recent Predictions', fontsize=10)
+    ax.set_xlabel('Date', fontsize=8)
+    ax.set_ylabel('Price', fontsize=8)
+    ax.xaxis.set_tick_params(labelsize=7, rotation=180)
+    ax.yaxis.set_tick_params(labelsize=7)
+    ax.legend(fontsize=6)
+    ax.grid(True)
+    fig.autofmt_xdate()
+    st.pyplot(fig)
 
 def display_performance_metrics(performance_metrics):
     # Convert the metrics dictionary to a DataFrame for better display
@@ -63,6 +128,51 @@ def plot_ensemble_predictions(ensemble_predictions, test_df, preprocessor):
     # ax.grid(True)
     fig.autofmt_xdate()
     st.pyplot(fig)
+
+
+def plot_ensemble_predictions_realtime(predictions_list, test_df, preprocessor, container):
+    with container:
+        plt.figure(figsize=(12, 6))
+        fig, ax = plt.subplots(figsize=(12, 6))
+        
+        # Plot historical data
+        test_df = reverse_normalize(test_df.copy(), 
+                                  preprocessor.train_mean['Auc Price'], 
+                                  preprocessor.train_std['Auc Price'])
+        plot_df = test_df.copy().tail(90)
+        ax.plot(plot_df.index, plot_df['Auc Price'], 
+                label='Actual Price', color='black', marker='o', markersize=3)
+        
+        # Plot predictions from each model
+        colors = plt.cm.cool(np.linspace(0, 1, 50))
+        all_predictions = []
+        
+        for i, (preds, trend) in enumerate(predictions_list):
+            normalized_preds = (preds['Auc Price'] * preprocessor.train_std['Auc Price']) + preprocessor.train_mean['Auc Price']
+            all_predictions.append(normalized_preds)
+            ax.plot(preds.index, normalized_preds, 
+                    label=f'Model {i+1} ({trend})', 
+                    color=colors[i % len(colors)],
+                    linestyle='dashed',
+                    linewidth=1,
+                    alpha=0.3)
+        
+        # If we have more than one prediction, plot the average
+        if len(all_predictions) > 1:
+            avg_predictions = np.mean([pred.values for pred in all_predictions], axis=0)
+            ax.plot(preds.index, avg_predictions,
+                    label=f'Average Prediction (n={len(predictions_list)})',
+                    color='red',
+                    linewidth=1,
+                    linestyle='solid')
+        
+        ax.set_title('Ensemble Model Predictions')
+        ax.set_xlabel('Date')
+        ax.set_ylabel('Price')
+        # ax.legend()
+        # ax.grid(True)
+        fig.autofmt_xdate()
+        st.pyplot(fig)
 
 def plot_equity_curve(balance_history_df):
 
@@ -208,47 +318,47 @@ def plot_model_results_with_trades(test_df_orig, predictions_df_orig, trade_log_
     fig.autofmt_xdate()
     st.pyplot(fig)
 
-def plot_recent_predictions(recent_preds_orig, trend, test_df_orig, preprocessor):
+# def plot_recent_predictions(recent_preds_orig, trend, test_df_orig, preprocessor):
 
-    plt.figure(figsize=(10, 4))
-    fig, ax = plt.subplots(figsize=(10, 4))
+#     plt.figure(figsize=(10, 4))
+#     fig, ax = plt.subplots(figsize=(10, 4))
 
-    # test_df = test_df.iloc[-10:]
-    recent_preds = recent_preds_orig.round(3).copy()
+#     # test_df = test_df.iloc[-10:]
+#     recent_preds = recent_preds_orig.round(3).copy()
 
-    test_df = test_df_orig.copy()
-    test_df = reverse_normalize(test_df, preprocessor.train_mean['Auc Price'], preprocessor.train_std['Auc Price'])
-    plot_df = test_df.copy().tail(90)
+#     test_df = test_df_orig.copy()
+#     test_df = reverse_normalize(test_df, preprocessor.train_mean['Auc Price'], preprocessor.train_std['Auc Price'])
+#     plot_df = test_df.copy().tail(90)
 
-    ax.plot(plot_df.index, plot_df['Auc Price'], label='Auc Price', color='tomato', marker='o', markersize=3)
+#     ax.plot(plot_df.index, plot_df['Auc Price'], label='Auc Price', color='tomato', marker='o', markersize=3)
 
-    pred_diff = np.mean(recent_preds.iloc[1:]['Auc Price'].values) - recent_preds.iloc[1]['Auc Price']
+#     pred_diff = np.mean(recent_preds.iloc[1:]['Auc Price'].values) - recent_preds.iloc[1]['Auc Price']
 
-    prediction_price = recent_preds.iloc[0]['Auc Price']
-    prediction_price = (prediction_price * preprocessor.train_std['Auc Price']) + preprocessor.train_mean['Auc Price'] 
+#     prediction_price = recent_preds.iloc[0]['Auc Price']
+#     prediction_price = (prediction_price * preprocessor.train_std['Auc Price']) + preprocessor.train_mean['Auc Price'] 
 
-    recent_preds['Auc Price'] = (recent_preds['Auc Price'] * preprocessor.train_std['Auc Price']) + preprocessor.train_mean['Auc Price']
-    grad = round(np.mean(np.gradient(recent_preds['Auc Price'].values[1:])), 4)
-    if pred_diff > 0:
-        ax.text(recent_preds.index[0], recent_preds.iloc[0]['Auc Price'], grad, fontsize=5, verticalalignment='bottom')
-        ax.scatter(recent_preds.index[0], recent_preds.iloc[0]['Auc Price'], color='green', marker='^', s=100)
-        ax.text(recent_preds.index[0], recent_preds.iloc[0]['Auc Price'], "Buy", fontsize=5, verticalalignment='top')
-        ax.plot(recent_preds.index, recent_preds['Auc Price'], color='green', label="Prediction", alpha=0.4, linestyle='dashed')
-    else: 
-        ax.text(recent_preds.index[0], recent_preds.iloc[0]['Auc Price'], grad, fontsize=5, verticalalignment='bottom')
-        ax.scatter(recent_preds.index[0], recent_preds.iloc[0]['Auc Price'], color='red', marker='v', s=100)
-        ax.text(recent_preds.index[0], recent_preds.iloc[0]['Auc Price'], "Sell", fontsize=5, verticalalignment='top')
-        ax.plot(recent_preds.index, recent_preds['Auc Price'], color='red', label="Prediction", alpha=0.4, linestyle='dashed')
+#     recent_preds['Auc Price'] = (recent_preds['Auc Price'] * preprocessor.train_std['Auc Price']) + preprocessor.train_mean['Auc Price']
+#     grad = round(np.mean(np.gradient(recent_preds['Auc Price'].values[1:])), 4)
+#     if pred_diff > 0:
+#         ax.text(recent_preds.index[0], recent_preds.iloc[0]['Auc Price'], grad, fontsize=5, verticalalignment='bottom')
+#         ax.scatter(recent_preds.index[0], recent_preds.iloc[0]['Auc Price'], color='green', marker='^', s=100)
+#         ax.text(recent_preds.index[0], recent_preds.iloc[0]['Auc Price'], "Buy", fontsize=5, verticalalignment='top')
+#         ax.plot(recent_preds.index, recent_preds['Auc Price'], color='green', label="Prediction", alpha=0.4, linestyle='dashed')
+#     else: 
+#         ax.text(recent_preds.index[0], recent_preds.iloc[0]['Auc Price'], grad, fontsize=5, verticalalignment='bottom')
+#         ax.scatter(recent_preds.index[0], recent_preds.iloc[0]['Auc Price'], color='red', marker='v', s=100)
+#         ax.text(recent_preds.index[0], recent_preds.iloc[0]['Auc Price'], "Sell", fontsize=5, verticalalignment='top')
+#         ax.plot(recent_preds.index, recent_preds['Auc Price'], color='red', label="Prediction", alpha=0.4, linestyle='dashed')
 
-    ax.set_title('Recent Predictions', fontsize=10)
-    ax.set_xlabel('Date', fontsize=8)
-    ax.set_ylabel('Price', fontsize=8)
-    ax.xaxis.set_tick_params(labelsize=7, rotation=180)
-    ax.yaxis.set_tick_params(labelsize=7)
-    ax.legend()
-    ax.grid(True)
-    fig.autofmt_xdate()
-    st.pyplot(fig)
+#     ax.set_title('Recent Predictions', fontsize=10)
+#     ax.set_xlabel('Date', fontsize=8)
+#     ax.set_ylabel('Price', fontsize=8)
+#     ax.xaxis.set_tick_params(labelsize=7, rotation=180)
+#     ax.yaxis.set_tick_params(labelsize=7)
+#     ax.legend()
+#     ax.grid(True)
+#     fig.autofmt_xdate()
+#     st.pyplot(fig)
     
 def plot_drawdown_curve(balance_history_df):
     # Calculate Drawdown

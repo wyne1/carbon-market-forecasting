@@ -44,18 +44,27 @@ def train_model(model, train_df, val_df, test_df, preprocessor, max_epochs=40):
     history = preprocessor.compile_and_fit(model, multi_window, use_early_stopping=True, max_epochs=max_epochs)
     return history
 
-def train_ensemble_models(merged_df, num_models=3):
-    ensemble_predictions = []
+# def train_ensemble_models(merged_df, num_models=3):
+#     ensemble_predictions = []
     
+#     for i in range(num_models):
+#         train_df, test_df, val_df, preprocessor = prepare_data(merged_df)
+#         num_features = len(test_df.columns)
+#         model = create_model(num_features, out_steps=7)
+#         history = train_model(model, train_df, val_df, test_df, preprocessor, max_epochs=10)
+#         _, recent_preds, trend = generate_model_predictions(model, test_df)
+#         ensemble_predictions.append((recent_preds, trend))
+    
+#     return ensemble_predictions, preprocessor, test_df
+
+def train_ensemble_models(merged_df, num_models=3):
     for i in range(num_models):
         train_df, test_df, val_df, preprocessor = prepare_data(merged_df)
         num_features = len(test_df.columns)
         model = create_model(num_features, out_steps=7)
-        history = train_model(model, train_df, val_df, test_df, preprocessor, max_epochs=10)
+        history = train_model(model, train_df, val_df, test_df, preprocessor, max_epochs=40)
         _, recent_preds, trend = generate_model_predictions(model, test_df)
-        ensemble_predictions.append((recent_preds, trend))
-    
-    return ensemble_predictions, preprocessor, test_df
+        yield recent_preds, trend, preprocessor, test_df
 
 def generate_predictions(model, test_df, input_width, out_steps):
     features = test_df.columns
