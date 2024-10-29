@@ -30,10 +30,10 @@ def load_and_preprocess_data():
     auction_df = auction_df.set_index('Date').resample('D').mean().reset_index()
 
     auction_df = auction_df[7:]
-    auction_df.loc[:, 'Premium/discount-settle'] = auction_df['Premium/discount-settle'].ffill()
-    auction_df.loc[:, ['Auc Price', 'Median Price', 'Cover Ratio', 'Spot Value',
-    'Auction Spot Diff', 'Median Spot Diff', 'Premium/discount-settle']] = auction_df[['Auc Price', 'Median Price', 'Cover Ratio', 'Spot Value', 
-                                                                                              'Auction Spot Diff', 'Median Spot Diff', 'Premium/discount-settle']].ffill()
+    # auction_df.loc[:, 'Premium/discount-settle'] = auction_df['Premium/discount-settle'].ffill()
+    auc_cols = ['Auc Price', 'Median Price', 'Cover Ratio', 'Spot Value', 
+                'Auction Spot Diff', 'Median Spot Diff', 'Premium/discount-settle']
+    auction_df.loc[:, auc_cols] = auction_df[auc_cols].ffill()
 
     merged_df = DataPreprocessor.engineer_auction_features(auction_df)
     return merged_df
@@ -46,6 +46,7 @@ def prepare_data_and_train_model(merged_df):
     model = create_model(num_features, OUT_STEPS)
     history = train_model(model, train_df, val_df, test_df, preprocessor)
     predictions_df, recent_preds, trend = generate_model_predictions(model, test_df)
+    
     return model, preprocessor, test_df, predictions_df, recent_preds, trend
 
 
