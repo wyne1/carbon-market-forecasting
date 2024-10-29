@@ -76,7 +76,7 @@ def main():
     model, preprocessor, test_df, predictions_df, recent_preds, trend = prepare_data_and_train_model(merged_df)
 
     # Create tabs
-    tab1, tab2 = st.tabs(["Backtesting", "Predictions"])
+    tab1, tab2, tab3 = st.tabs(["Backtesting", "Predictions", "Ensemble Predictions"])
 
     with tab1:
         # Sidebar Inputs
