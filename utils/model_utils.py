@@ -57,12 +57,12 @@ def train_model(model, train_df, val_df, test_df, preprocessor, max_epochs=40):
     
 #     return ensemble_predictions, preprocessor, test_df
 
-def train_ensemble_models(merged_df, num_models=3):
+def train_ensemble_models(merged_df, num_models=3, max_epochs=40):
     for i in range(num_models):
         train_df, test_df, val_df, preprocessor = prepare_data(merged_df)
         num_features = len(test_df.columns)
         model = create_model(num_features, out_steps=7)
-        history = train_model(model, train_df, val_df, test_df, preprocessor, max_epochs=40)
+        history = train_model(model, train_df, val_df, test_df, preprocessor, max_epochs=max_epochs)
         _, recent_preds, trend = generate_model_predictions(model, test_df)
         yield recent_preds, trend, preprocessor, test_df
 

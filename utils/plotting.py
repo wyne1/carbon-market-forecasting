@@ -129,6 +129,84 @@ def plot_ensemble_predictions(ensemble_predictions, test_df, preprocessor):
     fig.autofmt_xdate()
     st.pyplot(fig)
 
+def plot_ensemble_statistics(ensemble_predictions, test_df, preprocessor):
+    # Create figure with subplots
+    fig = plt.figure(figsize=(12, 6))
+    gs = fig.add_gridspec(1, 2, width_ratios=[7, 3])
+    
+    # Box plot with enhanced styling (spans 70% of width)
+    ax_box = fig.add_subplot(gs[0])
+    first_pred = ensemble_predictions[0][0]
+    all_predictions = np.zeros((len(ensemble_predictions), len(first_pred)))
+    
+    for i, (preds, trend) in enumerate(ensemble_predictions):
+        normalized_preds = (preds['Auc Price'] * preprocessor.train_std['Auc Price']) + preprocessor.train_mean['Auc Price']
+        all_predictions[i] = normalized_preds
+    
+    # Create violin plot with box plot inside
+    parts = ax_box.violinplot(all_predictions, showmeans=True)
+    bp = ax_box.boxplot(all_predictions, patch_artist=True)
+    
+    # Style violin plot
+    for pc in parts['bodies']:
+        pc.set_facecolor('lightblue')
+        pc.set_alpha(0.3)
+    parts['cmeans'].set_color('red')
+    
+    # Style box plot
+    colors = plt.cm.Set3(np.linspace(0, 1, len(all_predictions[0])))
+    for patch, color in zip(bp['boxes'], colors):
+        patch.set_facecolor(color)
+        patch.set_alpha(0.6)
+    
+    ax_box.set_title('Price Distribution by Day', pad=20)
+    ax_box.set_ylabel('Price')
+    ax_box.set_xlabel('Prediction Day')
+    ax_box.grid(True, alpha=0.3)
+    
+    # Consensus Plot (30% of width)
+    ax_consensus = fig.add_subplot(gs[1])
+    buy_votes = sum(1 for _, trend in ensemble_predictions if trend == 'positive')
+    sell_votes = len(ensemble_predictions) - buy_votes
+    
+    colors = ['lightgreen' if buy_votes > sell_votes else 'lightcoral', 
+              'lightcoral' if buy_votes > sell_votes else 'lightgreen']
+    sizes = [buy_votes, sell_votes]
+    labels = [f'Buy\n{buy_votes} votes', f'Sell\n{sell_votes} votes']
+    
+    ax_consensus.pie(sizes, labels=labels, colors=colors, autopct='%1.1f%%',
+                    startangle=90, pctdistance=0.85,
+                    wedgeprops=dict(width=0.5))
+    ax_consensus.set_title('Model Consensus', pad=20)
+    
+    plt.tight_layout()
+    st.pyplot(fig)
+    
+    # Calculate statistics for DataFrame
+    mean_pred = np.mean(all_predictions, axis=0)
+    std_pred = np.std(all_predictions, axis=0)
+    cv = (std_pred/mean_pred) * 100
+    
+    # Create statistics DataFrame
+    stats_dict = {
+        'Metric': [
+            'Number of Models',
+            'Average Final Prediction',
+            'Standard Deviation',
+            'Coefficient of Variation',
+            'Consensus Strength'
+        ],
+        'Value': [
+            len(ensemble_predictions),
+            f"{mean_pred[-1]:.2f}",
+            f"{std_pred[-1]:.2f}",
+            f"{cv[-1]:.1f}%",
+            'Strong' if max(buy_votes, sell_votes)/len(ensemble_predictions) > 0.7 else 'Weak'
+        ]
+    }
+    
+    stats_df = pd.DataFrame(stats_dict)
+    st.dataframe(stats_df, use_container_width=True, hide_index=True)
 
 def plot_ensemble_predictions_realtime(predictions_list, test_df, preprocessor, container):
     with container:
