@@ -23,7 +23,6 @@ client = MongoClient('mongodb://localhost:27017/')
 db = client['carbon_market_predictions']
 collection = db['recent_predictions']
 
-
 @st.cache_data
 def load_and_preprocess_data():
     cot_df, auction_df, eua_df, ta_df, fundamentals_df = MarketData.latest(Path('data'))
@@ -89,6 +88,7 @@ def main():
         risk_free_rate = st.sidebar.number_input("Risk-Free Rate (%)", value=1.0, min_value=0.0, max_value=10.0, step=0.1)
 
         st.sidebar.markdown("---")
+        
         # st.sidebar.header("Model and Data Inputs")
         # input_width = st.sidebar.number_input("Input Width (Days)", min_value=1, value=7, step=1)
         # out_steps = st.sidebar.number_input("Out Steps (Days)", min_value=1, value=7, step=1)
@@ -135,8 +135,8 @@ def main():
     with tab2:
         st.header("Recent Predictions")
         plot_recent_predictions(recent_preds, trend, test_df, preprocessor)
-
         collection = setup_mongodb_connection()
+        
         st.header("Stored Predictions")
         with st.spinner("Loading stored predictions..."):
             stored_predictions = get_stored_predictions(collection)
@@ -197,6 +197,7 @@ def main():
             # After all predictions are complete, show statistics
             st.subheader("Ensemble Analysis")
             plot_ensemble_statistics(predictions_list, test_df, preprocessor)
+
 if __name__ == "__main__":
     collection = setup_mongodb_connection()
     main()
