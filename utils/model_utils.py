@@ -111,7 +111,6 @@ def check_gradient(values):
     gradient = np.gradient(values)
     return 'positive' if np.all(gradient > 0) else 'negative'
 
-
 def generate_model_predictions(model, test_df):
     INPUT_STEPS = 7
     OUT_STEPS = 7
