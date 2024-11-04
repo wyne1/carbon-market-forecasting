@@ -27,27 +27,29 @@ def plot_recent_predictions(recent_preds_orig, trend, test_df_orig, preprocessor
     
     # Plot stored predictions from MongoDB
     collection = setup_mongodb_connection()
-    stored_predictions = get_stored_predictions(collection)
-    
-    # if stored_predictions:
-    #     for i, pred in enumerate(stored_predictions):
-    #         print("PRED LENGTH : ",len(pred['predictions']))
-    #         print(pred)
-    #         pred_dates = [pred['date']] + [pred['date'] + pd.Timedelta(days=i+1) for i in range(len(pred['predictions'])-1)]
-    #         color = 'lightgreen' if pred['trade_direction'] == 'Buy' else 'lightcoral'
-    #         ax.plot(pred_dates, pred['predictions'], 
-    #                color=color, 
-    #                alpha=0.5,
-    #                linestyle='dashed',
-    #                label=f"Stored Pred {pred['date'].date()}")
+    stored_predictions = get_stored_predictions(collection)[:-1]
+    print("Stored Predictions: ", stored_predictions)
+    if stored_predictions:
+        for i, pred in enumerate(stored_predictions):
+            print("PRED LENGTH : ",len(pred['predictions']))
+            print(pred)
+            pred_dates = [pred['date']] + [pred['date'] + pd.Timedelta(days=i+1) for i in range(len(pred['predictions'])-1)]
+            color = 'lightgreen' if pred['trade_direction'] == 'Buy' else 'lightcoral'
+
+            colors = plt.cm.cool(np.linspace(0, 1, 5))
+            ax.plot(pred_dates, pred['predictions'], 
+                   color=colors[i], 
+                   alpha=0.8,
+                   linestyle='dashed',
+                   label=f"Stored Pred {pred['date'].date()}")
             
-    #         # Add marker for trade direction
-    #         marker = '^' if pred['trade_direction'] == 'Buy' else 'v'
-    #         ax.scatter(pred_dates[0], pred['predictions'][0], 
-    #                   color=color, 
-    #                   marker=marker, 
-    #                   s=50,
-    #                   alpha=0.3)
+            # Add marker for trade direction
+            marker = '^' if pred['trade_direction'] == 'Buy' else 'v'
+            ax.scatter(pred_dates[0], pred['predictions'][0], 
+                      color=color, 
+                      marker=marker, 
+                      s=50,
+                      alpha=0.3)
 
     # Plot current prediction on top
     grad = round(np.mean(np.gradient(recent_preds['Auc Price'].values[1:])), 4)
