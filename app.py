@@ -37,10 +37,10 @@ def load_and_preprocess_data():
 
     merged_df = DataPreprocessor.engineer_auction_features(auction_df)
 
-    auc_df = merged_df[['Date', 'Auc Price']].copy()
-    options_df = options_df.merge(auc_df, how='left')
-    options_df = options_df.bfill()
-    return merged_df, options_df
+    # auc_df = merged_df[['Date', 'Auc Price']].copy()
+    # options_df = options_df.merge(auc_df, how='left')
+    # options_df = options_df.bfill()
+    return merged_df
 
 @st.cache_resource
 def prepare_data_and_train_model(merged_df):
