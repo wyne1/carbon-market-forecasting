@@ -39,10 +39,10 @@ class MarketData:
     def load_dataset(cls, path: Path) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
         cot_df = cls.load_cot_data(path)
         auction_df = cls.load_auction_data(path)
-        eua_df = cls.load_options_data(path)
+        options_df = cls.load_options_data(path)
         ta_df = cls.load_ta_data(path)
         fundamentals_df = cls.load_fundamentals_data(path)
-        return cot_df, auction_df, eua_df, ta_df, fundamentals_df
+        return cot_df, auction_df, options_df, ta_df, fundamentals_df
 
     @classmethod
     def load_cot_data(cls, path: Path) -> pd.DataFrame:
@@ -70,15 +70,81 @@ class MarketData:
 
     @classmethod
     def load_options_data(cls, path: Path) -> pd.DataFrame:
-        eua_df = pd.read_excel(path, sheet_name=cls.OPTIONS_SHEET_NAME)
-        eua_df['Date'] = pd.to_datetime(eua_df['Date'])
-        cols = ['Date', 'Aggregate Put Open Interest  (R1)', 'Aggregate Call Open Interest  (R1)', 'Aggregate Open Interest  (L1)', 'OPTION OI%', 'PUT/CALL OI',
-                '1M Trend', '3M Trend', '6M Trend', '1M Trend.1', '3M Trend.1', '6M Trend.1']
-        eua_df = eua_df[cols]
-        eua_df.columns = ['Date', 'Put OI', 'Call OI', 'Agg OI', 'Option OI%', 'Put/Call OI', '1M Trend', '3M Trend', '6M Trend', '1M Trend.1', '3M Trend.1', '6M Trend.1']
-        eua_df = eua_df[~eua_df['Date'].isna()]
-        eua_df = eua_df.sort_values(by='Date').reset_index(drop=True)
-        return eua_df
+        # eua_df = pd.read_excel(path, sheet_name=cls.OPTIONS_SHEET_NAME)
+        # eua_df['Date'] = pd.to_datetime(eua_df['Date'])
+        # cols = ['Date', 'Aggregate Put Open Interest  (R1)', 'Aggregate Call Open Interest  (R1)', 'Aggregate Open Interest  (L1)', 'OPTION OI%', 'PUT/CALL OI',
+        #         '1M Trend', '3M Trend', '6M Trend', '1M Trend.1', '3M Trend.1', '6M Trend.1']
+        # eua_df = eua_df[cols]
+        # eua_df.columns = ['Date', 'Put OI', 'Call OI', 'Agg OI', 'Option OI%', 'Put/Call OI', '1M Trend', '3M Trend', '6M Trend', '1M Trend.1', '3M Trend.1', '6M Trend.1']
+        # eua_df = eua_df[~eua_df['Date'].isna()]
+        # eua_df = eua_df.sort_values(by='Date').reset_index(drop=True)
+
+
+        eua_options_cols = ['Date', 'Aggregate Put Open Interest  (R1)', 
+                       'Aggregate Call Open Interest  (R1)', 
+                       'Aggregate Open Interest  (L1)', 'OPTION OI%', 'PUT/CALL OI']
+        eua_options = pd.read_excel(path, 
+                                sheet_name='EUA option-G363')
+        eua_options['Date'] = pd.to_datetime(pd.to_datetime(eua_options['Date']).dt.date)
+        eua_options = eua_options[eua_options_cols][eua_options['Date'].dt.year >= 2018].dropna()
+
+        # Load and process pachis delta data
+        pachis_delta = pd.read_excel(path, 
+                                sheet_name='25Delta')
+        
+        # Process December data
+        dec_cols = ["Date", "Hist Vol", "50D-Hist Vol", "50D", "25D Spread", "butterfly"]
+        pachis_delta_dec = pachis_delta[dec_cols].copy()
+        pachis_delta_dec.columns = ["Date", "Hist Vol - 1Y", 
+                        "iVol/Hist Vol Spread - Dec", 
+                        "50 Delta iVol - Dec", 
+                        "25Δ Risk Reversal (Call - Put) - Dec", 
+                        "Butterfly - Dec"]
+        pachis_delta_dec['Date'] = pd.to_datetime(pachis_delta_dec['Date'])
+        pachis_delta_dec = pachis_delta_dec[pachis_delta_dec['Date'].dt.year > 2018] 
+        for col in ['Hist Vol - 1Y', 'iVol/Hist Vol Spread - Dec', '50 Delta iVol - Dec']:
+            pachis_delta_dec.iloc[:, pachis_delta_dec.columns.get_loc(col)] = pachis_delta_dec[col].replace(' ', np.nan).astype(float)
+        pachis_delta_dec.iloc[:, pachis_delta_dec.columns.get_loc('iVol/Hist Vol Spread - Dec')] = pachis_delta_dec['iVol/Hist Vol Spread - Dec'].astype(float)
+        pachis_delta_dec.iloc[:, pachis_delta_dec.columns.get_loc('50 Delta iVol - Dec')] = pachis_delta_dec['50 Delta iVol - Dec'].astype(float)
+
+        # Process Prompt data
+        prompt_cols = ["Date.1", "50D.1", "25D Spread.1", "butterfly.1"]
+        pachis_delta_prompt = pachis_delta[prompt_cols].copy()
+        pachis_delta_prompt.columns = ["Date", "50 Delta iVol - Prompt",
+                               "25Δ Risk Reversal (Call - Put) - Prompt",
+                               "Butterfly - Prompt"]
+        pachis_delta_prompt['Date'] = pd.to_datetime(pachis_delta_prompt['Date'])
+        pachis_delta_prompt = pachis_delta_prompt[pachis_delta_prompt['Date'].dt.year > 2018]
+        # First convert any string values to numeric, handling spaces
+        pachis_delta_prompt['50 Delta iVol - Prompt'] = pd.to_numeric(pachis_delta_prompt['50 Delta iVol - Prompt'].replace(' ', np.nan), errors='coerce')
+
+        
+        # Load and process option time series
+        option_ts = pd.read_excel(path, 
+                                sheet_name='Option Time series')
+        # Create prompt dataframe
+        cols = ['Date', 'Call_OI-Prompt', 'Put_OI-Prompt', 'Dec_OI', 'Call/Put', 'Option%']
+        option_ts_prompt = option_ts[cols].copy()
+        option_ts_prompt.columns = ['Date', 'Call_OI-Prompt', 'Put_OI-Prompt', 'Dec_OI', 'Call/Put-Prompt', 'Option%-Prompt']
+
+        # Create december dataframe
+        cols = ['Date', 'Call/Put.1', 'Option%.1']
+        option_ts_dec = option_ts[cols].copy()
+        option_ts_dec.columns = ['Date', 'Call/Put-Dec', 'Option%-Dec']
+
+        # Merge the two dataframes on Date
+        option_ts_combined = pd.merge(option_ts_prompt, option_ts_dec, on='Date', how='outer')
+        option_ts_combined = option_ts_combined.sort_values(by='Date', ascending=False)
+        option_ts_combined = option_ts_combined[:-74]
+
+        combined_df = eua_options.merge(pachis_delta_dec, on='Date', how='left')\
+            .merge(pachis_delta_prompt, on='Date', how='left')\
+            .merge(option_ts_combined, on='Date', how='left')
+        
+        combined_df = combined_df[combined_df['Date'].dt.year>=2023][:-70]
+
+        return combined_df
+        # return eua_df
 
     @classmethod
     def load_ta_data(cls, path: Path) -> pd.DataFrame:
