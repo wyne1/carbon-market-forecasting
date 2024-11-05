@@ -25,7 +25,7 @@ collection = db['recent_predictions']
 
 @st.cache_data
 def load_and_preprocess_data():
-    cot_df, auction_df, eua_df, ta_df, fundamentals_df = MarketData.latest(Path('data'))
+    cot_df, auction_df, options_df, ta_df, fundamentals_df = MarketData.latest(Path('data'))
     cot_df = cot_df.set_index('Date').resample('W', origin='end').mean().reset_index()
     auction_df = auction_df.set_index('Date').resample('D').mean().reset_index()
 
@@ -36,7 +36,11 @@ def load_and_preprocess_data():
     auction_df.loc[:, auc_cols] = auction_df[auc_cols].ffill()
 
     merged_df = DataPreprocessor.engineer_auction_features(auction_df)
-    return merged_df
+
+    auc_df = merged_df[['Date', 'Auc Price']].copy()
+    options_df = options_df.merge(auc_df, how='left')
+    options_df = options_df.bfill()
+    return merged_df, options_df
 
 @st.cache_resource
 def prepare_data_and_train_model(merged_df):
