@@ -175,8 +175,10 @@ def backtest_model_with_metrics(model, test_df, input_width, out_steps, initial_
         prev_index = entry_index - pd.Timedelta(days=1)
         prev_price = test_df_denormalized.loc[prev_index, 'Auc Price'] if prev_index in test_df_denormalized.index else entry_price
 
+        print(f"PREV PRICE: {prev_price}")
         # Determine signal based on predicted mean price
         pred_mean = predictions_df['Auc Price'][idx * out_steps:(idx + 1) * out_steps].mean()
+        print(f"PRED MEAN: {pred_mean}")
         signal = 'Buy' if pred_mean > prev_price else 'Sell'
 
         trade_closed = False
