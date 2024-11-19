@@ -25,7 +25,7 @@ pip-delete-this-directory.txt
 # Project-specific
 invoices/
 archive/
-data/
+data/*
 !/data/date_sheet_latest.xlsx
 
 # Environments
