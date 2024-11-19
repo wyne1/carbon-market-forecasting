@@ -26,6 +26,7 @@ pip-delete-this-directory.txt
 invoices/
 archive/
 data/
+!/data/date_sheet_latest.xlsx
 
 # Environments
 .env
