@@ -36,7 +36,7 @@ def plot_recent_predictions(recent_preds_orig, trend, test_df_orig, preprocessor
             pred_dates = [pred['date']] + [pred['date'] + pd.Timedelta(days=i+1) for i in range(len(pred['predictions'])-1)]
             color = 'lightgreen' if pred['trade_direction'] == 'Buy' else 'lightcoral'
 
-            colors = plt.cm.cool(np.linspace(0, 1, 5))
+            colors = plt.cm.cool(np.linspace(0, 1, 20))
             ax.plot(pred_dates, pred['predictions'], 
                    color=colors[i], 
                    alpha=0.8,
@@ -69,7 +69,7 @@ def plot_recent_predictions(recent_preds_orig, trend, test_df_orig, preprocessor
     ax.set_ylabel('Price', fontsize=8)
     ax.xaxis.set_tick_params(labelsize=7, rotation=180)
     ax.yaxis.set_tick_params(labelsize=7)
-    ax.legend(fontsize=6)
+    # ax.legend(fontsize=6)
     ax.grid(True)
     fig.autofmt_xdate()
     st.pyplot(fig)
