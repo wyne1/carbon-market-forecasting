@@ -24,8 +24,25 @@ class MarketData:
     OPTIONS_SHEET_NAME: str = "EUA option-G363"
     TA_SHEET_NAME: str = "TA"
     FUNDAMENTALS_SHEET_NAME: str = "power generation-G355"
-    ICE_SHEET_NAME: str = "ICE"
+    ICE_SHEET_NAME: str = "ICE Value"
 
+    @staticmethod
+    def analyze_price_relationships(df: pd.DataFrame) -> dict:
+        """Analyze relationships between different price metrics."""
+        df['Spot_Close_Diff'] = df['Spot Value'] - df['Close']
+        df['Spot_Close_Ratio'] = df['Spot Value'] / df['Close']
+        df['Auc_Spot_Diff'] = df['Auc Price'] - df['Spot Value']
+        df['Auc_Spot_Ratio'] = df['Auc Price'] / df['Spot Value']
+        
+        return {
+            'Spot_Close_Diff_Mean': df['Spot_Close_Diff'].mean(),
+            'Spot_Close_Diff_Median': df['Spot_Close_Diff'].median(),
+            'Spot_Close_Ratio_Mean': df['Spot_Close_Ratio'].mean(),
+            'Auc_Spot_Diff_Mean': df['Auc_Spot_Diff'].mean(),
+            'Auc_Spot_Diff_Median': df['Auc_Spot_Diff'].median(),
+            'Auc_Spot_Ratio_Mean': df['Auc_Spot_Ratio'].mean(),
+        }
+    
     @classmethod
     def latest(cls, directory: Path) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
         return cls.version(directory, "latest")
@@ -44,6 +61,42 @@ class MarketData:
         fundamentals_df = cls.load_fundamentals_data(path)
         return cot_df, auction_df, options_df, ta_df, fundamentals_df
 
+    @staticmethod
+    def fill_missing_values(df: pd.DataFrame) -> pd.DataFrame:
+        """Fill missing values in the dataset using historical relationships."""
+        stats = MarketData.analyze_price_relationships(df)
+        filled_df = df.copy()
+        
+        # Fill Spot Value using Close price
+        mask = filled_df['Spot Value'].isna() & filled_df['Close'].notna()
+        filled_df.loc[mask, 'Spot Value'] = (
+            filled_df.loc[mask, 'Close'] * stats['Spot_Close_Ratio_Mean']
+        )
+        
+        # Fill Auc Price using Spot Value
+        mask = filled_df['Auc Price'].isna() & filled_df['Spot Value'].notna()
+        filled_df.loc[mask, 'Auc Price'] = (
+            filled_df.loc[mask, 'Spot Value'] + stats['Auc_Spot_Diff_Mean']
+        )
+        
+        # Fill Median Price using High and Low
+        mask = filled_df['Median Price'].isna()
+        filled_df.loc[mask, 'Median Price'] = (
+            (filled_df.loc[mask, 'High'] + filled_df.loc[mask, 'Low']) / 2
+        )
+
+        # Calculate derived columns
+        filled_df['Median Spot Diff'] = filled_df['Median Price'] - filled_df['Spot Value']
+        filled_df['Auction Spot Diff'] = filled_df['Auc Price'] - filled_df['Spot Value'] 
+        filled_df['Premium/discount-settle'] = filled_df['Auction Spot Diff'] / filled_df['Spot Value']
+        
+        # Fill Cover Ratio
+        filled_df['Cover Ratio'] = filled_df['Cover Ratio'].fillna(
+            filled_df['Cover Ratio'].rolling(window=30, min_periods=1).median()
+        )
+        
+        return filled_df
+    
     @classmethod
     def load_cot_data(cls, path: Path) -> pd.DataFrame:
         cot_df = pd.read_excel(path, sheet_name=cls.COT_SHEET_NAME)
@@ -56,18 +109,64 @@ class MarketData:
         cot_df.loc[:, 'Long/Short'] = cot_df['spec_long_%'] / cot_df['spec_short_%']
 
         return cot_df
+    
 
     @classmethod
     def load_auction_data(cls, path: Path) -> pd.DataFrame:
+        """Load and process auction data with ICE data for filling missing values."""
         auction_df = pd.read_excel(path, sheet_name=cls.AUCTION_SHEET_NAME)
-        cols = ['date', 'auction price', 'median price', 'cover ratio', 'Spot.value', 'Auction.Spot.diff', 'Median.Spot.diff', 'Premium/discount-settle']
+        cols = ['date', 'auction price', 'median price', 'cover ratio', 'Spot.value', 
+                'Auction.Spot.diff', 'Median.Spot.diff', 'Premium/discount-settle']
         auction_df = auction_df[cols]
-        auction_df.columns = ['Date', 'Auc Price', 'Median Price', 'Cover Ratio', 'Spot Value', 'Auction Spot Diff', 'Median Spot Diff', 'Premium/discount-settle']
+        auction_df.columns = ['Date', 'Auc Price', 'Median Price', 'Cover Ratio', 
+                            'Spot Value', 'Auction Spot Diff', 'Median Spot Diff', 
+                            'Premium/discount-settle']
+        
+        # Process dates
         auction_df['Date'] = pd.to_datetime(auction_df['Date'])
         auction_df = auction_df[~auction_df['Date'].isna()]
         auction_df = auction_df.sort_values(by='Date').reset_index(drop=True)
-        return auction_df
+        auction_df = auction_df.set_index('Date').resample('D').mean().reset_index()
 
+        # Merge with ICE data and fill missing values
+        # ice_df = cls.load_ice_data(path)
+
+        ice_df = pd.read_excel(path, sheet_name=cls.ICE_SHEET_NAME, skiprows=4)
+        ice_df = ice_df[['Unnamed: 11', 'High', 'Open', 'Low', 'Close']][1:]
+        ice_df.columns = ['Date', 'High', 'Open', 'Low', 'Close']
+        
+        ice_df['Date'] = pd.to_datetime(ice_df['Date'])
+        ice_df = ice_df[ice_df['Date'].dt.year >= 2000]
+        ice_df['Date'] = ice_df['Date'].dt.date
+        ice_df['Date'] = pd.to_datetime(ice_df['Date'])
+        ice_df = ice_df[1:]
+
+
+        
+        merged_df = pd.merge(auction_df, ice_df, on='Date', how='outer')
+        filled_df = cls.fill_missing_values(merged_df)
+        
+        # Return only the auction columns after filling
+        filled_df = filled_df[auction_df.columns]
+        
+        # Replace negative Auc Price values with rolling mean
+        mask = filled_df['Auc Price'] < 0
+        filled_df.loc[mask, 'Auc Price'] = filled_df['Auc Price'].rolling(window=30, min_periods=1).mean()
+        
+        return filled_df
+    
+    @classmethod
+    def load_ice_data(cls, path: Path) -> pd.DataFrame:
+        """Load ICE market data from Excel file."""
+        ice_df = pd.read_excel(path, sheet_name=cls.ICE_SHEET_NAME, skiprows=4)
+        ice_df = ice_df[['Unnamed: 11', 'High', 'Open', 'Low', 'Close']][1:]
+        ice_df.columns = ['Date', 'High', 'Open', 'Low', 'Close']
+        
+        ice_df['Date'] = pd.to_datetime(ice_df['Date'])
+        ice_df = ice_df[ice_df['Date'].dt.year >= 2000]
+        ice_df['Date'] = ice_df['Date'].dt.date
+        ice_df['Date'] = pd.to_datetime(ice_df['Date'])
+        return ice_df[1:]
     @classmethod
     def load_options_data(cls, path: Path) -> pd.DataFrame:
         # eua_df = pd.read_excel(path, sheet_name=cls.OPTIONS_SHEET_NAME)
@@ -275,6 +374,10 @@ class DataPreprocessor:
         # Create a copy of the input DataFrame to avoid modifying the original
         merged_df = df.copy()
         
+
+        """
+        - Missing initial data - need 
+        """
         # Ensure 'Date' is in datetime format
         merged_df['Date'] = pd.to_datetime(merged_df['Date'])
         
