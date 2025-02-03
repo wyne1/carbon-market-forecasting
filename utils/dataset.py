@@ -27,21 +27,42 @@ class MarketData:
     ICE_SHEET_NAME: str = "ICE Value"
 
     @staticmethod
-    def analyze_price_relationships(df: pd.DataFrame) -> dict:
-        """Analyze relationships between different price metrics."""
+    def analyze_price_relationships(df):
+        # Replace inf values with NaN first
+        df['Spot Value'] = df['Spot Value'].replace([np.inf, -np.inf], np.nan)
+        df['Close'] = df['Close'].replace([np.inf, -np.inf], np.nan)
+        df['Auc Price'] = df['Auc Price'].replace([np.inf, -np.inf], np.nan)
+
+
+        mask = ~(np.isinf(df['Spot Value']) | np.isinf(df['Close']) | df['Spot Value'].isna() | df['Close'].isna())
+        filtered_df = df.loc[mask]
+
+        # Additional check to ensure no zeros in Close column to avoid division by zero
+        mask2 = filtered_df['Close'] != 0
+        ratio = filtered_df.loc[mask2, 'Spot Value'] / filtered_df.loc[mask2, 'Close']
+
+        # Remove any remaining inf values that may have occurred during division
+        ratio = ratio[~np.isinf(ratio)]
+
+        
+        # Calculate average differences and ratios
         df['Spot_Close_Diff'] = df['Spot Value'] - df['Close']
-        df['Spot_Close_Ratio'] = df['Spot Value'] / df['Close']
+        # df['Spot_Close_Ratio'] = df['Spot Value'] / df['Close']
         df['Auc_Spot_Diff'] = df['Auc Price'] - df['Spot Value']
         df['Auc_Spot_Ratio'] = df['Auc Price'] / df['Spot Value']
+
         
-        return {
+        # Calculate statistics for non-null pairs
+        stats = {
             'Spot_Close_Diff_Mean': df['Spot_Close_Diff'].mean(),
             'Spot_Close_Diff_Median': df['Spot_Close_Diff'].median(),
-            'Spot_Close_Ratio_Mean': df['Spot_Close_Ratio'].mean(),
+            'Spot_Close_Ratio_Mean': ratio.mean(),
             'Auc_Spot_Diff_Mean': df['Auc_Spot_Diff'].mean(),
             'Auc_Spot_Diff_Median': df['Auc_Spot_Diff'].median(),
             'Auc_Spot_Ratio_Mean': df['Auc_Spot_Ratio'].mean(),
         }
+    
+        return stats
     
     @classmethod
     def latest(cls, directory: Path) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
@@ -65,19 +86,34 @@ class MarketData:
     def fill_missing_values(df: pd.DataFrame) -> pd.DataFrame:
         """Fill missing values in the dataset using historical relationships."""
         stats = MarketData.analyze_price_relationships(df)
+
+        print(f"\n\nCalculated Stats: {stats}\n\n")
+        
         filled_df = df.copy()
         
+        inf_counts = filled_df.isin([np.inf, -np.inf]).sum()
+        print("Number of inf values in each column FILLED DF:")
+        print(inf_counts.head(20))
+
         # Fill Spot Value using Close price
         mask = filled_df['Spot Value'].isna() & filled_df['Close'].notna()
         filled_df.loc[mask, 'Spot Value'] = (
             filled_df.loc[mask, 'Close'] * stats['Spot_Close_Ratio_Mean']
         )
+
+        inf_counts = filled_df.isin([np.inf, -np.inf]).sum()
+        print("Number of inf values in each column FILLED DF 1:")
+        print(inf_counts.head(20))
         
         # Fill Auc Price using Spot Value
         mask = filled_df['Auc Price'].isna() & filled_df['Spot Value'].notna()
         filled_df.loc[mask, 'Auc Price'] = (
             filled_df.loc[mask, 'Spot Value'] + stats['Auc_Spot_Diff_Mean']
         )
+
+        inf_counts = filled_df.isin([np.inf, -np.inf]).sum()
+        print("Number of inf values in each column FILLED DF2:")
+        print(inf_counts.head(20))
         
         # Fill Median Price using High and Low
         mask = filled_df['Median Price'].isna()
@@ -85,12 +121,24 @@ class MarketData:
             (filled_df.loc[mask, 'High'] + filled_df.loc[mask, 'Low']) / 2
         )
 
+        inf_counts = filled_df.isin([np.inf, -np.inf]).sum()
+        print("Number of inf values in each column FILLED DF3:")
+        print(inf_counts.head(20))
+
         # Calculate derived columns
         filled_df['Median Spot Diff'] = filled_df['Median Price'] - filled_df['Spot Value']
         filled_df['Auction Spot Diff'] = filled_df['Auc Price'] - filled_df['Spot Value'] 
-        filled_df['Premium/discount-settle'] = filled_df['Auction Spot Diff'] / filled_df['Spot Value']
+        filled_df['Premium/discount-settle'] = np.where(
+            filled_df['Spot Value'] != 0,
+            filled_df['Auction Spot Diff'] / filled_df['Spot Value'],
+            0  # or another default value like np.nan
+        )
         
+        inf_counts = filled_df.isin([np.inf, -np.inf]).sum()
+        print("Number of inf values in each column FILLED DF4:")
+        print(inf_counts.head(20))
         # Fill Cover Ratio
+        # First fill NaN values with rolling median
         filled_df['Cover Ratio'] = filled_df['Cover Ratio'].fillna(
             filled_df['Cover Ratio'].rolling(window=30, min_periods=1).median()
         )
@@ -114,6 +162,8 @@ class MarketData:
     @classmethod
     def load_auction_data(cls, path: Path) -> pd.DataFrame:
         """Load and process auction data with ICE data for filling missing values."""
+
+        print("\n\nLOADING AUCTIONS DATA\n")
         auction_df = pd.read_excel(path, sheet_name=cls.AUCTION_SHEET_NAME)
         cols = ['date', 'auction price', 'median price', 'cover ratio', 'Spot.value', 
                 'Auction.Spot.diff', 'Median.Spot.diff', 'Premium/discount-settle']
@@ -128,9 +178,11 @@ class MarketData:
         auction_df = auction_df.sort_values(by='Date').reset_index(drop=True)
         auction_df = auction_df.set_index('Date').resample('D').mean().reset_index()
 
+        auction_df = auction_df[auction_df['Date'].dt.year >= 2020]
         # Merge with ICE data and fill missing values
         # ice_df = cls.load_ice_data(path)
 
+        print(f"Auction DF: {auction_df.head()} | SHAPE: {auction_df.shape}")
         ice_df = pd.read_excel(path, sheet_name=cls.ICE_SHEET_NAME, skiprows=4)
         ice_df = ice_df[['Unnamed: 11', 'High', 'Open', 'Low', 'Close']][1:]
         ice_df.columns = ['Date', 'High', 'Open', 'Low', 'Close']
@@ -142,17 +194,20 @@ class MarketData:
         ice_df = ice_df[1:]
 
 
-        
         merged_df = pd.merge(auction_df, ice_df, on='Date', how='outer')
         filled_df = cls.fill_missing_values(merged_df)
+        # print(f"Merged DF: {merged_df.head()} | SHAPE: {merged_df.shape}")
         
         # Return only the auction columns after filling
         filled_df = filled_df[auction_df.columns]
         
+        # print(f"Filled DF: {filled_df.head()} | SHAPE: {filled_df.shape}")
         # Replace negative Auc Price values with rolling mean
         mask = filled_df['Auc Price'] < 0
         filled_df.loc[mask, 'Auc Price'] = filled_df['Auc Price'].rolling(window=30, min_periods=1).mean()
         
+
+        # print(f"Filled DF: {filled_df.head()} | SHAPE: {filled_df.shape}")
         return filled_df
     
     @classmethod

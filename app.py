@@ -45,6 +45,14 @@ def load_and_preprocess_data():
 @st.cache_resource
 def prepare_data_and_train_model(merged_df):
     train_df, test_df, val_df, preprocessor = prepare_data(merged_df)
+    
+    train_df = train_df.dropna(axis=1)
+    test_df = test_df.dropna(axis=1)
+    val_df = val_df.dropna(axis=1)
+
+    print("Prepared Data\n\n")
+    print(f"{train_df}")
+    print(f"{test_df}")
     num_features = len(test_df.columns)
     OUT_STEPS = 7
     model = create_model(num_features, OUT_STEPS)
@@ -76,6 +84,7 @@ def main():
 
     # Load data (this will be cached)
     merged_df, options_df = load_and_preprocess_data()
+    
     # Train model (this will be cached unless the cache was just cleared)
     model, preprocessor, test_df, predictions_df, recent_preds, trend = prepare_data_and_train_model(merged_df)
 

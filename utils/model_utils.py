@@ -47,6 +47,10 @@ def train_model(model, train_df, val_df, test_df, preprocessor, max_epochs=40):
 def train_ensemble_models(merged_df, num_models=3, max_epochs=40):
     for i in range(num_models):
         train_df, test_df, val_df, preprocessor = prepare_data(merged_df)
+
+        train_df = train_df.dropna(axis=1)
+        test_df = test_df.dropna(axis=1)
+        val_df = val_df.dropna(axis=1)
         num_features = len(test_df.columns)
         model = create_model(num_features, out_steps=7)
         history = train_model(model, train_df, val_df, test_df, preprocessor, max_epochs=max_epochs)
@@ -54,6 +58,8 @@ def train_ensemble_models(merged_df, num_models=3, max_epochs=40):
         yield recent_preds, trend, preprocessor, test_df
 
 def generate_predictions(model, test_df, input_width, out_steps):
+
+    print(f"\n\nGenerate Predictions: {test_df}\n\n")
     features = test_df.columns
     num_features = len(features)
     predictions = []
@@ -76,21 +82,42 @@ def generate_predictions(model, test_df, input_width, out_steps):
 
 def generate_recent_predictions(model, test_df, input_width, out_steps):
     features = test_df.columns
+    print(f"Features: {features}")
+    
     num_features = len(features)
+    print(f"Number of features: {num_features}")
+    
     inputs = test_df[-input_width:].values
+    print(f"INPUTS: {inputs}" )
     inputs_reshaped = inputs.reshape((1, input_width, num_features))
+    print(f"Reshaped input shape: {inputs_reshaped.shape}")
+    
+    print("Making prediction...")
     preds = model.predict(inputs_reshaped)
     
+    print("Creating predictions list...")
     predictions = []
     predictions.append(preds[0])
+    print(f"Predictions list shape: {len(predictions)}, {predictions[0].shape}")
+    
+    print("Concatenating predictions...")
     predictions = np.concatenate(predictions, axis=0)
 
+    print("Generating date range...")
     start_date = test_df.index[-1] + datetime.timedelta(days=1)
     date_range = pd.date_range(start=start_date, periods=out_steps)
+    print(f"Date range: {date_range}")
+
+    print("Creating predictions DataFrame...")
     recent_preds = pd.DataFrame(predictions, index=date_range, columns=test_df.columns)
     
+    print("Checking gradient trend...")
     trend = check_gradient(recent_preds['Auc Price'])
+    print(f"Trend detected: {trend}")
+
+    print("Concatenating with last test value...")
     recent_preds = pd.concat([test_df.iloc[[-1]], recent_preds])
+    print(f"Final predictions DataFrame shape: {recent_preds.shape}")
 
     return recent_preds, trend
 

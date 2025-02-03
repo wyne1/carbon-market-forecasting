@@ -31,8 +31,6 @@ def plot_recent_predictions(recent_preds_orig, trend, test_df_orig, preprocessor
     print("Stored Predictions: ", stored_predictions)
     if stored_predictions:
         for i, pred in enumerate(stored_predictions):
-            print("PRED LENGTH : ",len(pred['predictions']))
-            print(pred)
             pred_dates = [pred['date']] + [pred['date'] + pd.Timedelta(days=i+1) for i in range(len(pred['predictions'])-1)]
             color = 'lightgreen' if pred['trade_direction'] == 'Buy' else 'lightcoral'
 
