@@ -33,7 +33,7 @@ def create_model(num_features, out_steps):
     ])
     return multi_conv_model
 
-def train_model(model, train_df, val_df, test_df, preprocessor, max_epochs=40):
+def train_model(model, train_df, val_df, test_df, preprocessor, max_epochs=60):
     OUT_STEPS = 7
     INPUT_STEPS = 7
     multi_window = WindowGenerator(input_width=INPUT_STEPS,
@@ -45,7 +45,9 @@ def train_model(model, train_df, val_df, test_df, preprocessor, max_epochs=40):
     return history
 
 def train_ensemble_models(merged_df, num_models=3, max_epochs=40):
+    merged_df = merged_df.drop(['Auction_Type', 'Day of Week'], axis=1)
     for i in range(num_models):
+        
         train_df, test_df, val_df, preprocessor = prepare_data(merged_df)
 
         train_df = train_df.dropna(axis=1)
@@ -58,8 +60,6 @@ def train_ensemble_models(merged_df, num_models=3, max_epochs=40):
         yield recent_preds, trend, preprocessor, test_df
 
 def generate_predictions(model, test_df, input_width, out_steps):
-
-    print(f"\n\nGenerate Predictions: {test_df}\n\n")
     features = test_df.columns
     num_features = len(features)
     predictions = []
@@ -112,7 +112,9 @@ def generate_recent_predictions(model, test_df, input_width, out_steps):
     recent_preds = pd.DataFrame(predictions, index=date_range, columns=test_df.columns)
     
     print("Checking gradient trend...")
+
     trend = check_gradient(recent_preds['Auc Price'])
+    print(f"Trend Predictions: {recent_preds['Auc Price']}")
     print(f"Trend detected: {trend}")
 
     print("Concatenating with last test value...")

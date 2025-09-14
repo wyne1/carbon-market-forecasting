@@ -50,13 +50,23 @@ def backtest_model(model, test_df, input_width, out_steps, initial_balance, take
     for idx, i in enumerate(range(input_width, len(test_df) - out_steps + 1, out_steps)):
         entry_index = predictions_df.index[idx * out_steps]
         entry_price = test_df.loc[entry_index, 'Auc Price']
+        print(f"[DEBUG] entry_index: {entry_index}, entry_price: {entry_price}, type: {type(entry_price)}")
+        if isinstance(entry_price, pd.Series):
+            print(f"[DEBUG] entry_price is Series, values: {entry_price.values}")
+            entry_price = entry_price.iloc[0]
         prev_index = entry_index - pd.Timedelta(days=1)
         prev_price = test_df.loc[prev_index, 'Auc Price'] if prev_index in test_df.index else entry_price
+        print(f"[DEBUG] prev_index: {prev_index}, prev_price: {prev_price}, type: {type(prev_price)}")
+        if isinstance(prev_price, pd.Series):
+            print(f"[DEBUG] prev_price is Series, values: {prev_price.values}")
+            prev_price = prev_price.iloc[0]
 
         # Determine signal based on predicted mean price
         pred_mean = predictions_df['Auc Price'][idx * out_steps:(idx + 1) * out_steps].mean()
-
-
+        print(f"[DEBUG] pred_mean: {pred_mean}, type: {type(pred_mean)}")
+        if isinstance(pred_mean, pd.Series):
+            print(f"[DEBUG] pred_mean is Series, values: {pred_mean.values}")
+            pred_mean = pred_mean.iloc[0]
         signal = 'Buy' if pred_mean > prev_price else 'Sell'
 
         trade_closed = False
@@ -69,10 +79,17 @@ def backtest_model(model, test_df, input_width, out_steps, initial_balance, take
             if current_index not in test_df.index:
                 continue
             current_price = test_df.loc[current_index, 'Auc Price']
+            print(f"[DEBUG] current_index: {current_index}, current_price: {current_price}, type: {type(current_price)}")
+            if isinstance(current_price, pd.Series):
+                print(f"[DEBUG] current_price is Series, values: {current_price.values}")
+                current_price = current_price.iloc[0]
 
             # Calculate return percentage
             if signal == 'Buy':
                 return_pct = (current_price - entry_price) / entry_price
+                print(f"[DEBUG] return_pct (Buy): {return_pct}, type: {type(return_pct)}")
+                if isinstance(return_pct, pd.Series):
+                    return_pct = return_pct.iloc[0]
                 if return_pct >= take_profit:
                     exit_price = entry_price * (1 + take_profit)
                     exit_date = current_index
@@ -85,6 +102,9 @@ def backtest_model(model, test_df, input_width, out_steps, initial_balance, take
                     break
             else:  # Sell signal
                 return_pct = (entry_price - current_price) / entry_price
+                print(f"[DEBUG] return_pct (Sell): {return_pct}, type: {type(return_pct)}")
+                if isinstance(return_pct, pd.Series):
+                    return_pct = return_pct.iloc[0]
                 if return_pct >= take_profit:
                     exit_price = entry_price * (1 - take_profit)
                     exit_date = current_index
@@ -96,7 +116,7 @@ def backtest_model(model, test_df, input_width, out_steps, initial_balance, take
                     trade_closed = True
                     break
         # If trade not closed, close at the last available price
-        if not trade_closed:
+        if not bool(trade_closed):
             last_index = entry_index + pd.Timedelta(days=out_steps)
             while last_index not in test_df.index and last_index > entry_index:
                 last_index -= pd.Timedelta(days=1)
@@ -172,19 +192,25 @@ def backtest_model_with_metrics(model, test_df, input_width, out_steps, initial_
     for idx, i in enumerate(range(input_width, len(test_df) - out_steps + 1, out_steps)):
         entry_index = predictions_df.index[idx * out_steps]
         entry_price = test_df_denormalized.loc[entry_index, 'Auc Price']
+        if isinstance(entry_price, pd.Series):
+            entry_price = entry_price.iloc[0]
         prev_index = entry_index - pd.Timedelta(days=1)
         prev_price = test_df_denormalized.loc[prev_index, 'Auc Price'] if prev_index in test_df_denormalized.index else entry_price
+        if isinstance(prev_price, pd.Series):
+            prev_price = prev_price.iloc[0]
 
         print(f"PREV PRICE: {prev_price}")
         # Determine signal based on predicted mean price
         pred_mean = predictions_df['Auc Price'][idx * out_steps:(idx + 1) * out_steps].mean()
-        print(f"PRED MEAN: {pred_mean}")
+        if isinstance(pred_mean, pd.Series):
+            pred_mean = pred_mean.iloc[0]
         signal = 'Buy' if pred_mean > prev_price else 'Sell'
 
         trade_closed = False
         exit_price = None
         exit_date = None
 
+        print(test_df_denormalized.index.value_counts())
         # Position sizing
         position_size = balance * position_size_fraction
 
@@ -194,10 +220,17 @@ def backtest_model_with_metrics(model, test_df, input_width, out_steps, initial_
             if current_index not in test_df_denormalized.index:
                 continue
             current_price = test_df_denormalized.loc[current_index, 'Auc Price']
+            if isinstance(current_price, pd.Series):
+                current_price = current_price.iloc[0]
 
             # Calculate return percentage
             if signal == 'Buy':
+
+                print(f"Entry Price: {entry_price}, Current Price: {current_price}")
                 return_pct = (current_price - entry_price) / entry_price
+
+                print(f"RETURN PCT: {return_pct}")
+
                 if return_pct >= take_profit:
                     exit_price = entry_price * (1 + take_profit)
                     exit_date = current_index
@@ -222,12 +255,14 @@ def backtest_model_with_metrics(model, test_df, input_width, out_steps, initial_
                     break
 
         # If trade not closed, close at the last available price
-        if not trade_closed:
+        if not bool(trade_closed):
             last_index = entry_index + pd.Timedelta(days=out_steps)
             while last_index not in test_df_denormalized.index and last_index > entry_index:
                 last_index -= pd.Timedelta(days=1)
             if last_index in test_df_denormalized.index:
                 exit_price = test_df_denormalized.loc[last_index, 'Auc Price']
+                if isinstance(exit_price, pd.Series):
+                    exit_price = exit_price.iloc[0]
                 exit_date = last_index
             else:
                 # If exit price not found, skip the trade

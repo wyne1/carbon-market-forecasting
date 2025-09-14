@@ -343,12 +343,16 @@ class DataPreprocessor:
         # val_df = merged_df[(merged_df['Date'].dt.year == 2022) & (merged_df['Date'].dt.month >= 6)].copy().set_index('Date')[FEATURES].copy()
         # test_df = merged_df[merged_df['Date'].dt.year >= 2023].copy().set_index('Date')[FEATURES].copy()
 
-        train_df = merged_df[merged_df['Date'] <
-                        "2024-04-01"].copy().set_index('Date')[FEATURES].copy()
+        # train_df = merged_df[merged_df['Date'] <
+        #                 "2024-04-01"].copy().set_index('Date')[FEATURES].copy()
     
-        val_df = merged_df[(merged_df['Date'] >= "2024-01-01") & (merged_df['Date'] < "2024-04-01")].copy().set_index('Date')[FEATURES].copy()
-        # val_df = train_df
-        test_df = merged_df[merged_df['Date'] >= "2024-04-01"].copy().set_index('Date')[FEATURES].copy()
+        # val_df = merged_df[(merged_df['Date'] >= "2024-01-01") & (merged_df['Date'] < "2024-04-01")].copy().set_index('Date')[FEATURES].copy()
+        # # val_df = train_df
+        # test_df = merged_df[merged_df['Date'] >= "2024-04-01"].copy().set_index('Date')[FEATURES].copy()
+
+        train_df = merged_df[merged_df['Date'] < "2025-01-01"].copy().set_index('Date')[FEATURES].copy()
+        val_df = merged_df[(merged_df['Date'] >= "2025-02-01") & (merged_df['Date'] < "2025-03-01")].copy().set_index('Date')[FEATURES].copy()
+        test_df = merged_df[merged_df['Date'] >= "2025-03-01"].copy().set_index('Date')[FEATURES].copy()
         return train_df, test_df, val_df
 
     def normalize(self, train_df: pd.DataFrame, test_df: pd.DataFrame, val_df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:

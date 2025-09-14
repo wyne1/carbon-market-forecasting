@@ -28,18 +28,23 @@ def plot_recent_predictions(recent_preds_orig, trend, test_df_orig, preprocessor
     # Plot stored predictions from MongoDB
     collection = setup_mongodb_connection()
     stored_predictions = get_stored_predictions(collection)[:-1]
-    print("Stored Predictions: ", stored_predictions)
+
+    print(stored_predictions)
+
+    print(f"Stored Prediction 1: {stored_predictions[0]}")
+    # Only plot the last 5 stored predictions
     if stored_predictions:
-        for i, pred in enumerate(stored_predictions):
-            pred_dates = [pred['date']] + [pred['date'] + pd.Timedelta(days=i+1) for i in range(len(pred['predictions'])-1)]
+        last_5_predictions = stored_predictions[:5]
+        for i, pred in enumerate(last_5_predictions):
+            pred_dates = [pred['date']] + [pred['date'] + pd.Timedelta(days=j+1) for j in range(len(pred['predictions'])-1)]
             color = 'lightgreen' if pred['trade_direction'] == 'Buy' else 'lightcoral'
 
             colors = plt.cm.cool(np.linspace(0, 1, 20))
             ax.plot(pred_dates, pred['predictions'], 
-                   color=colors[i], 
+                   color=colors[i % 20], 
                    alpha=0.8,
                    linestyle='dashed',
-                   label=f"Stored Pred {pred['date'].date()}")
+                   label=f"Stored Pred {pd.to_datetime(pred['date']).date()}")
             
             # Add marker for trade direction
             marker = '^' if pred['trade_direction'] == 'Buy' else 'v'
@@ -324,6 +329,7 @@ def plot_model_results_with_trades(test_df_orig, predictions_df_orig, trade_log_
 
     test_df = test_df_orig.copy()
     predictions_df = predictions_df_orig.copy()
+    
     trade_log_df = trade_log_df_orig.copy()
     # Plot the price data
     predictions_df = reverse_normalize(predictions_df, preprocessor.train_mean['Auc Price'], preprocessor.train_std['Auc Price'])
@@ -343,7 +349,8 @@ def plot_model_results_with_trades(test_df_orig, predictions_df_orig, trade_log_
     ax.plot(test_df.index, test_df['Auc Price'], label='Auc Price', color='blue')
 
     # Plot predicted 'Auc Price'
-    ax.plot(predictions_df.index, predictions_df['Auc Price'], label='Predicted Auc Price', linestyle='dashed', color='orange')
+    # predictions_df.loc[predictions_df['Auc Price'] < 0, 'Auc Price'] = predictions_df['Auc Price'].mean()
+    # ax.plot(predictions_df.index, predictions_df['Auc Price'], label='Predicted Auc Price', linestyle='dashed', color='orange')
 
     # Plot buy and sell signals from trade_log_df
     for idx, trade in trade_log_df.iterrows():

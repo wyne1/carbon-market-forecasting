@@ -9,50 +9,53 @@ from pathlib import Path
 from pymongo import MongoClient
 from datetime import datetime
 
-from utils.dataset import MarketData, DataPreprocessor
+from utils.dataset import DataPreprocessor
 from utils.data_processing import prepare_data
 from utils.plotting import (display_performance_metrics, display_trade_log, plot_equity_curve, 
                             plot_model_results_with_trades, plot_recent_predictions, plot_ensemble_statistics, plot_ensemble_predictions_realtime)
 from utils.model_utils import create_model, train_model, generate_model_predictions, train_ensemble_models
 from utils.mongodb_utils import get_stored_predictions, setup_mongodb_connection, save_recent_predictions
 from utils.backtesting import backtest_model_with_metrics
-
+from utils.smart_preprocessing import SmartAuctionPreprocessor
+from utils.lseg_data_loader import LSEGDataLoader
 # MongoDB setup
 
 client = MongoClient('mongodb://localhost:27017/')
 db = client['carbon_market_predictions']
 collection = db['recent_predictions']
 
+
+# NEW: Modified load function for your app.py
 @st.cache_data
-def load_and_preprocess_data():
-    cot_df, auction_df, options_df, ta_df, fundamentals_df = MarketData.latest(Path('data'))
-    cot_df = cot_df.set_index('Date').resample('W', origin='end').mean().reset_index()
-    auction_df = auction_df.set_index('Date').resample('D').mean().reset_index()
+def load_and_preprocess_data_smart():
+    """
+    REPLACE your current load_and_preprocess_data function with this
+    """
+    # Load new data
+    df = pd.read_excel('data/latest_data_jul.xlsx').set_index('Unnamed: 0')
 
-    auction_df = auction_df[7:]
-    # auction_df.loc[:, 'Premium/discount-settle'] = auction_df['Premium/discount-settle'].ffill()
-    auc_cols = ['Auc Price', 'Median Price', 'Cover Ratio', 'Spot Value', 
-                'Auction Spot Diff', 'Median Spot Diff', 'Premium/discount-settle']
-    auction_df.loc[:, auc_cols] = auction_df[auc_cols].ffill()
-
-    merged_df = DataPreprocessor.engineer_auction_features(auction_df)
-
-    auc_df = merged_df[['Date', 'Auc Price']].copy()
-    options_df = options_df.merge(auc_df, how='left')
-    options_df = options_df.bfill()
-    return merged_df, options_df
+    auction_loader = LSEGDataLoader()
+    df = auction_loader.load_auction_data()
+    
+    print(f"Merged DF: {df}")
+    return df
 
 @st.cache_resource
 def prepare_data_and_train_model(merged_df):
+    # print("Column Types:")
+    # for col in merged_df.columns:
+    #     print(f"{col}: {merged_df[col].dtype}")
+
+    merged_df = merged_df.drop(['Auction_Type', 'Day of Week'], axis=1)
+    
+
+    print(f"Using the following columns: {merged_df.columns}")
     train_df, test_df, val_df, preprocessor = prepare_data(merged_df)
     
     train_df = train_df.dropna(axis=1)
     test_df = test_df.dropna(axis=1)
     val_df = val_df.dropna(axis=1)
 
-    print("Prepared Data\n\n")
-    print(f"{train_df}")
-    print(f"{test_df}")
     num_features = len(test_df.columns)
     OUT_STEPS = 7
     model = create_model(num_features, OUT_STEPS)
@@ -83,7 +86,8 @@ def main():
     st.title("Trading Strategy Backtesting Dashboard")
 
     # Load data (this will be cached)
-    merged_df, options_df = load_and_preprocess_data()
+    merged_df = load_and_preprocess_data_smart()
+    # merged_df.to_csv('testing_merged.csv')
     
     # Train model (this will be cached unless the cache was just cleared)
     model, preprocessor, test_df, predictions_df, recent_preds, trend = prepare_data_and_train_model(merged_df)
@@ -154,8 +158,12 @@ def main():
         with st.spinner("Loading stored predictions..."):
             stored_predictions = get_stored_predictions(collection)
             if stored_predictions:
+                # Only show the most recent N predictions
+                N = 20  # Change this number as desired
+                recent_predictions = stored_predictions[-N:] if len(stored_predictions) > N else stored_predictions
+
                 data = []
-                for pred in stored_predictions:
+                for pred in recent_predictions:
                     try:
                         pred_diff = float(pred['pred_diff'])
                     except (ValueError, TypeError):
@@ -164,7 +172,7 @@ def main():
                     row = [pred['date'], pred['trade_direction'], pred_diff] + pred['predictions']
                     data.append(row)
                 
-                columns = ['Date', 'Trade Direction', 'Pred Diff'] + [f'Day {i+1}' for i in range(len(stored_predictions[0]['predictions']))]
+                columns = ['Date', 'Trade Direction', 'Pred Diff'] + [f'Day {i+1}' for i in range(len(recent_predictions[0]['predictions']))]
                 df = pd.DataFrame(data, columns=columns)
                 df['Date'] = pd.to_datetime(df['Date']).dt.date
 
@@ -178,6 +186,7 @@ def main():
                              .format({'Pred Diff': '{:.4f}'})
                              , use_container_width=True, hide_index=True
                 )
+                st.caption(f"Showing {len(df)} most recent stored predictions.")
             else:
                 st.info("No stored predictions found.")
 
