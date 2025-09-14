@@ -31,13 +31,10 @@ def load_and_preprocess_data_smart():
     """
     REPLACE your current load_and_preprocess_data function with this
     """
-    # Load new data
-    df = pd.read_excel('data/latest_data_jul.xlsx').set_index('Unnamed: 0')
 
     auction_loader = LSEGDataLoader()
     df = auction_loader.load_auction_data()
     
-    print(f"Merged DF: {df}")
     return df
 
 @st.cache_resource

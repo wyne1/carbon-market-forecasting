@@ -13,6 +13,76 @@ def compile_and_fit(model, window, patience=2, MAX_EPOCHS=20):
                         callbacks=[early_stopping])
     return history
 
+class IrregularTimeSeriesWindowGenerator:
+    """
+    Modified window generator that works with irregular auction dates
+    """
+    def __init__(self, input_width, label_width, shift, train_df, val_df, test_df, label_columns=None):
+        self.input_width = input_width
+        self.label_width = label_width
+        self.shift = shift
+        self.train_df = train_df
+        self.val_df = val_df
+        self.test_df = test_df
+        self.label_columns = label_columns
+        
+        if label_columns is not None:
+            self.label_columns_indices = {name: i for i, name in enumerate(label_columns)}
+        self.column_indices = {name: i for i, name in enumerate(train_df.columns)}
+    
+    def make_dataset(self, data, shuffle=False):
+        """Create dataset from irregular time series"""
+        data_array = np.array(data, dtype=np.float32)
+        
+        # Create sequences respecting the actual time order
+        sequences = []
+        labels = []
+        
+        total_window_size = self.input_width + self.shift
+        
+        for i in range(len(data_array) - total_window_size + 1):
+            # Input sequence
+            input_seq = data_array[i:i + self.input_width]
+            
+            # Label sequence
+            label_start = i + self.input_width + self.shift - self.label_width
+            label_seq = data_array[label_start:label_start + self.label_width]
+            
+            sequences.append(input_seq)
+            labels.append(label_seq)
+        
+        if len(sequences) == 0:
+            print(f"⚠️ Warning: No sequences created. Data length: {len(data_array)}, Required: {total_window_size}")
+            # Create minimal dataset to avoid errors
+            dummy_seq = np.zeros((1, self.input_width, data_array.shape[1]))
+            dummy_label = np.zeros((1, self.label_width, data_array.shape[1]))
+            return tf.data.Dataset.from_tensor_slices((dummy_seq, dummy_label)).batch(1)
+        
+        sequences = np.array(sequences)
+        labels = np.array(labels)
+        
+        # Filter labels if specific columns are requested
+        if self.label_columns is not None:
+            label_indices = [self.column_indices[name] for name in self.label_columns]
+            labels = labels[:, :, label_indices]
+        
+        dataset = tf.data.Dataset.from_tensor_slices((sequences, labels))
+        if shuffle:
+            dataset = dataset.shuffle(buffer_size=len(sequences))
+        
+        return dataset.batch(32)
+    
+    @property
+    def train(self):
+        return self.make_dataset(self.train_df)
+    
+    @property
+    def val(self):
+        return self.make_dataset(self.val_df)
+    
+    @property
+    def test(self):
+        return self.make_dataset(self.test_df, shuffle=False)
 
 class WindowGenerator():
     def __init__(self, input_width, label_width, shift,

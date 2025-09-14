@@ -34,7 +34,7 @@ from utils.mongodb_utils import setup_mongodb_connection, save_recent_prediction
 from utils.backtesting import backtest_model_with_metrics
 from utils.smart_preprocessing import SmartAuctionPreprocessor
 from utils.data_processing import reverse_normalize
-
+from utils.lseg_data_loader import LSEGDataLoader
 # Suppress warnings for cleaner output
 warnings.filterwarnings('ignore')
 tf.get_logger().setLevel('ERROR')
@@ -85,42 +85,11 @@ class AutomatedPipeline:
         self.recent_preds = None
         self.trend = None
         self.ensemble_results = None  # Store ensemble results
+        self.auction_loader = LSEGDataLoader()
+            
         
         print("🚀 Automated Carbon Market Analysis Pipeline Initialized")
         print(f"📁 Output directory: {self.output_dir.absolute()}")
-
-    def load_and_preprocess_data(self):
-        """
-        Load and preprocess the market data
-        """
-        print("\n📊 Loading and preprocessing data...")
-        
-        try:
-            # Load new data
-            df = pd.read_excel(self.config['data_file']).set_index('Unnamed: 0')
-            
-            # Apply smart preprocessing
-            preprocessor = SmartAuctionPreprocessor()
-            auction_df = preprocessor.preprocess_auction_data(df)
-            
-            # Convert to compatible format
-            auction_df = auction_df.rename(columns={'Auction Price': 'Auc Price'})
-            auction_df['Spot Value'] = auction_df['AVG_PRC1']
-            auction_df['Auction Spot Diff'] = auction_df['Auc Price'] - auction_df['Spot Value']
-            auction_df['Median Spot Diff'] = auction_df['Median Price'] - auction_df['Spot Value']
-            auction_df['Premium/discount-settle'] = auction_df['Auction Spot Diff'] / auction_df['Spot Value']
-            
-            # Apply feature engineering
-            merged_df = DataPreprocessor.engineer_auction_features(auction_df)
-            
-            print(f"✅ Data loaded successfully: {merged_df.shape}")
-            print(f"📅 Date range: {merged_df['Date'].min()} to {merged_df['Date'].max()}")
-            
-            return merged_df
-            
-        except Exception as e:
-            print(f"❌ Error loading data: {e}")
-            raise
 
     def train_model(self, merged_df):
         """
@@ -652,7 +621,7 @@ class AutomatedPipeline:
         
         try:
             # Step 1: Load and preprocess data
-            merged_df = self.load_and_preprocess_data()
+            merged_df = self.auction_loader.load_auction_data()
             
             # Step 2: Train model
             history = self.train_model(merged_df)
