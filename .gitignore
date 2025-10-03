@@ -49,11 +49,12 @@ archive/
 output/
 output_plots/
 data/
+invoices/
 docs/
 models/
-notebooks/
 scripts/
 config/
+notebooks/
 .env
 .env.local
 .env.development.local

@@ -16,7 +16,107 @@ from ta.trend import MACD
 from ta.momentum import RSIIndicator
 
 
-
+def extract_settlement_values(df):
+    """
+    Extract settlement values based on daylight saving adjusted times
+    
+    Args:
+        df: DataFrame with 'Date' (datetime) and 'Spot Value' columns
+    
+    Returns:
+        DataFrame with daily settlement values
+    """
+    
+    # Ensure Date is datetime
+    df = df.copy()
+    df['Date'] = pd.to_datetime(df['Date'])
+    
+    # Extract date components
+    df['DateOnly'] = df['Date'].dt.date
+    df['Hour'] = df['Date'].dt.hour
+    df['Month'] = df['Date'].dt.month
+    
+    # Define settlement hours by month groups
+    def get_settle_hour(month):
+        if month in [11, 12, 1, 2, 3]:  # Nov-Mar
+            return 11
+        else:  # Apr-Oct
+            return 10
+    
+    settlement_results = []
+    
+    # Process each trading day
+    for date in df['DateOnly'].unique():
+        day_data = df[df['DateOnly'] == date].copy()
+        
+        if day_data.empty:
+            continue
+            
+        # Get settlement hour for this month
+        month = day_data['Month'].iloc[0]
+        settle_hour = get_settle_hour(month)
+        
+        # Find the closest time >= settlement hour
+        settle_or_after = day_data[day_data['Hour'] >= settle_hour]
+        
+        if settle_or_after.empty:
+            # No data at or after settlement time, use last available value
+            last_valid_idx = day_data['Spot Value'].last_valid_index()
+            if last_valid_idx is not None:
+                settlement_value = day_data.loc[last_valid_idx, 'Spot Value']
+                settlement_time = day_data.loc[last_valid_idx, 'Date']
+            else:
+                # No valid data for this day
+                continue
+        else:
+            # Find the earliest time >= settlement hour
+            target_time = settle_or_after['Date'].min()
+            target_idx = day_data[day_data['Date'] == target_time].index[0]
+            
+            # Go backwards from target time to find last non-null value
+            before_target = day_data[day_data.index < target_idx]
+            
+            if before_target.empty:
+                # No data before target time, use target time value if not null
+                if pd.notna(day_data.loc[target_idx, 'Spot Value']):
+                    settlement_value = day_data.loc[target_idx, 'Spot Value']
+                    settlement_time = day_data.loc[target_idx, 'Date']
+                else:
+                    continue
+            else:
+                # Find last non-null value before target time
+                last_valid_idx = before_target['Spot Value'].last_valid_index()
+                if last_valid_idx is not None:
+                    settlement_value = day_data.loc[last_valid_idx, 'Spot Value']
+                    settlement_time = day_data.loc[last_valid_idx, 'Date']
+                else:
+                    # No valid data before target, try target itself
+                    if pd.notna(day_data.loc[target_idx, 'Spot Value']):
+                        settlement_value = day_data.loc[target_idx, 'Spot Value']
+                        settlement_time = day_data.loc[target_idx, 'Date']
+                    else:
+                        continue
+        
+        settlement_results.append({
+            'Date': date,
+            'Settlement_Time': settlement_time,
+            'Settlement_Value': settlement_value,
+            'Settlement_Hour_Target': settle_hour,
+            'Month': month
+        })
+    
+    # Convert to DataFrame
+    settlement_df = pd.DataFrame(settlement_results)
+    
+    if not settlement_df.empty:
+        settlement_df = settlement_df.sort_values('Date').reset_index(drop=True)
+        
+        # Add some useful info
+        settlement_df['Actual_Hour'] = pd.to_datetime(settlement_df['Settlement_Time']).dt.hour
+        settlement_df['Actual_Minute'] = pd.to_datetime(settlement_df['Settlement_Time']).dt.minute
+        settlement_df['Time_Used'] = pd.to_datetime(settlement_df['Settlement_Time']).dt.strftime('%H:%M')
+    
+    return settlement_df
 
 class MarketData:
     COT_SHEET_NAME: str = "COT-G362"

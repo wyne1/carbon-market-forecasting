@@ -188,6 +188,9 @@ def backtest_model_with_metrics(model, test_df, input_width, out_steps, initial_
     predictions_df = reverse_normalize(predictions_df, preprocessor.train_mean['Auc Price'], preprocessor.train_std['Auc Price'])
     test_df_denormalized = reverse_normalize(test_df.copy(), preprocessor.train_mean['Auc Price'], preprocessor.train_std['Auc Price'])
 
+    print(f"PREDICTION DATAFRAME")
+    print(predictions_df)
+    
     # Simulate trades based on predictions
     for idx, i in enumerate(range(input_width, len(test_df) - out_steps + 1, out_steps)):
         entry_index = predictions_df.index[idx * out_steps]
@@ -210,6 +213,7 @@ def backtest_model_with_metrics(model, test_df, input_width, out_steps, initial_
         exit_price = None
         exit_date = None
 
+        print(f"TEST DF NORMALIZED:")
         print(test_df_denormalized.index.value_counts())
         # Position sizing
         position_size = balance * position_size_fraction

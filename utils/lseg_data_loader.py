@@ -68,7 +68,13 @@ class LSEGDataLoader:
                 return None
             
             # Rename column to match expected format
-            df_cf = df_cf.rename(columns={'TRDPRC_1': 'Spot Value'})
+            df_cf = df_cf.rename(columns={
+                'Timestamp' : 'Date',
+                'TRDPRC_1': 'Spot Value'
+                },
+            )
+            
+            print(f"DF CF NAMES: {df_cf.columns}")
             
             # Use the settlement extraction logic
             from utils.dataset import extract_settlement_values  # Import your function
@@ -78,6 +84,8 @@ class LSEGDataLoader:
                 st.warning(f"No settlement value found for {target_date}")
                 return None
             
+
+            print(f"SETTLEMENT DF NAMES: {settlement_df.columns}")
             # Get the settlement value for this date
             settlement_row = settlement_df[settlement_df['Date'] == date_obj.date()]
             
@@ -190,6 +198,7 @@ class LSEGDataLoader:
                 if spot_data:
                     new_spot_data.append(spot_data)
                     st.info(f"Fetched spot price for {date}: {spot_data['Spot Value']:.2f}")
+
             
             # Update the spot file
             if new_spot_data:
@@ -245,7 +254,7 @@ class LSEGDataLoader:
             
             # 4. Check and update spot data if necessary
             spot_df = _self._check_and_update_spot_data(merged_df.reset_index(), SPOT_FILE_NAME)
-            
+            print(f"SPOT DATAFRAME: {spot_df.tail(10)}")
             # 5. Apply the same smart preprocessing as the original pipeline
             preprocessor = SmartAuctionPreprocessor()
             auction_df = preprocessor.preprocess_auction_data(merged_df)
