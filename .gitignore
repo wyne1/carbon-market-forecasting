@@ -1,33 +1,61 @@
 # Python
 __pycache__/
 *.py[cod]
-*.pyo
-*.pyc
-*.pyd
+*$py.class
+*.so
 .Python
 env/
 venv/
 ENV/
-env.bak/
-venv.bak/
-pip-log.txt
-pip-delete-this-directory.txt
 
-# Jupyter Notebook
-.ipynb_checkpoints
-notebooks/checkpoints/
-# VS Code
+# Data files
+data/*.xlsx
+data/*.xls
+data/*.csv
+!data/latest_auction.xlsx
+
+# Credentials
+config/credentials.json
+config/token.json
+token.json
+
+# Output files
+output/
+output_plots/
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb_checkpoints
+
+# IDE
 .vscode/
+.idea/
+*.swp
+*.swo
 
-# macOS
+# OS
 .DS_Store
+Thumbs.db
 
-# Project-specific
-invoices/
+# MongoDB
+*.log
+
+# Models
+models/*.h5
+models/*.pkl
+
+# Archives
 archive/
-data/*
-!/data/date_sheet_latest.xlsx
-
-# Environments
+output/
+output_plots/
+data/
+docs/
+models/
+notebooks/
+scripts/
+config/
 .env
-.venv
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
