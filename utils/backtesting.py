@@ -138,8 +138,8 @@ def backtest_model(model, test_df, input_width, out_steps, initial_balance, take
         balance += profit_loss
         balance_history.append(balance)
         trade_log.append({
-            'Entry Date': entry_index,
-            'Exit Date': exit_date,
+            'Entry Date': pd.to_datetime(entry_index),
+            'Exit Date': pd.to_datetime(exit_date),
             'Signal': signal,
             'Entry Price': entry_price,
             'Exit Price': exit_price,
@@ -212,9 +212,6 @@ def backtest_model_with_metrics(model, test_df, input_width, out_steps, initial_
         trade_closed = False
         exit_price = None
         exit_date = None
-
-        print(f"TEST DF NORMALIZED:")
-        print(test_df_denormalized.index.value_counts())
         # Position sizing
         position_size = balance * position_size_fraction
 
@@ -230,10 +227,9 @@ def backtest_model_with_metrics(model, test_df, input_width, out_steps, initial_
             # Calculate return percentage
             if signal == 'Buy':
 
-                print(f"Entry Price: {entry_price}, Current Price: {current_price}")
+                # print(f"Entry Price: {entry_price}, Current Price: {current_price}")
                 return_pct = (current_price - entry_price) / entry_price
 
-                print(f"RETURN PCT: {return_pct}")
 
                 if return_pct >= take_profit:
                     exit_price = entry_price * (1 + take_profit)
@@ -287,8 +283,8 @@ def backtest_model_with_metrics(model, test_df, input_width, out_steps, initial_
         balance_history.append({'Date': exit_date, 'Balance': balance})
 
         trade_log.append({
-            'Entry Date': entry_index,
-            'Exit Date': exit_date,
+            'Entry Date': pd.to_datetime(entry_index),
+            'Exit Date': pd.to_datetime(exit_date),
             'Signal': signal,
             'Entry Price': entry_price,
             'Exit Price': exit_price,

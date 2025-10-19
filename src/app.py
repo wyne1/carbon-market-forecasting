@@ -1,3 +1,4 @@
+from turtle import width
 from IPython.display import display
 import pandas as pd
 import numpy as np
@@ -181,7 +182,7 @@ def main():
                              .map(color_trade_direction, subset=['Trade Direction'])
                              .highlight_max(axis=1, subset=df.columns[3:])
                              .format({'Pred Diff': '{:.4f}'})
-                             , use_container_width=True, hide_index=True
+                             , width='stretch', hide_index=True
                 )
                 st.caption(f"Showing {len(df)} most recent stored predictions.")
             else:

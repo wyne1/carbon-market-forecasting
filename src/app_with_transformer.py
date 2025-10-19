@@ -225,7 +225,7 @@ def main():
                              .map(color_trade_direction, subset=['Trade Direction'])
                              .highlight_max(axis=1, subset=df.columns[3:])
                              .format({'Pred Diff': '{:.4f}'})
-                             , use_container_width=True, hide_index=True
+                             , width='stretch', hide_index=True
                 )
                 st.caption(f"Showing {len(df)} most recent stored predictions.")
             else:
@@ -316,51 +316,45 @@ def main():
         
         # Check if model exists in session state
         if 'transformer_model' in st.session_state:
-            # Display Transformer predictions
-            st.subheader("📊 Transformer Model Performance")
+            # Display prediction metrics only
+            st.subheader("📊 Transformer Model Predictions")
             
-            # Compare with baseline
+            # Show prediction trend and signal
             col1, col2, col3, col4 = st.columns(4)
             
-            # Calculate comparison metrics
-            comparison = compare_transformer_vs_baseline(
-                st.session_state.transformer_predictions_df,
-                predictions_df,
-                test_df,
-                metric='mae'
-            )
-            
             with col1:
-                st.metric(
-                    "Transformer MAE",
-                    f"€{comparison.get('transformer_mae', 0):.2f}",
-                    delta=f"{comparison.get('improvement_pct', 0):.1f}% vs CNN"
-                )
-            
-            with col2:
-                st.metric(
-                    "Transformer R²",
-                    f"{comparison.get('transformer_r2', 0):.3f}",
-                    delta=f"{(comparison.get('transformer_r2', 0) - comparison.get('baseline_r2', 0)):.3f}"
-                )
-            
-            with col3:
                 st.metric(
                     "Prediction Trend",
                     st.session_state.transformer_trend.upper(),
                     delta="7-day forecast"
                 )
             
-            with col4:
+            with col2:
                 if st.session_state.transformer_trend == 'positive':
                     st.metric("Signal", "BUY", delta="↑")
                 else:
                     st.metric("Signal", "SELL", delta="↓")
             
-            # Plot predictions
+            with col3:
+                latest_pred = st.session_state.transformer_recent_preds['Auc Price'].iloc[-1]
+                st.metric(
+                    "Latest Prediction",
+                    f"€{latest_pred:.2f}",
+                    delta="Day 7"
+                )
+            
+            with col4:
+                # Calculate average predicted price
+                avg_pred = st.session_state.transformer_recent_preds['Auc Price'].mean()
+                st.metric(
+                    "Avg 7-Day Price",
+                    f"€{avg_pred:.2f}"
+                )
+            
+            # Plot predictions - keeping the original predictions visualization
             st.subheader("📈 Transformer Predictions Visualization")
             
-            # Create the plot
+            # Create the plot with historical predictions
             fig = plot_transformer_predictions(
                 st.session_state.transformer_test_df,
                 st.session_state.transformer_predictions_df,
@@ -370,122 +364,79 @@ def main():
             st.pyplot(fig)
             plt.close()
             
-            # Training history
-            if st.session_state.transformer_history:
-                st.subheader("📉 Training History")
-                
-                col1, col2 = st.columns(2)
-                
-                with col1:
-                    fig, ax = plt.subplots(figsize=(6, 4))
-                    history = st.session_state.transformer_history
-                    ax.plot(history.history['loss'], label='Training Loss')
-                    ax.plot(history.history['val_loss'], label='Validation Loss')
-                    ax.set_xlabel('Epoch')
-                    ax.set_ylabel('Loss')
-                    ax.set_title('Model Loss During Training')
-                    ax.legend()
-                    ax.grid(True, alpha=0.3)
-                    st.pyplot(fig)
-                    plt.close()
-                
-                with col2:
-                    # Display recent predictions table
-                    st.subheader("🔮 7-Day Forward Forecast")
-                    recent = st.session_state.transformer_recent_preds[['Auc Price']].tail(7)
-                    recent.columns = ['Predicted Price (€/tCO2)']
-                    recent.index = pd.date_range(
-                        start=test_df.index[-1] + pd.Timedelta(days=1),
-                        periods=7
+            # Display 7-Day Forward Forecast Table
+            st.subheader("🔮 7-Day Forward Forecast")
+            recent = st.session_state.transformer_recent_preds[['Auc Price']].tail(7)
+            recent.columns = ['Predicted Price (€/tCO2)']
+            recent.index = pd.date_range(
+                start=test_df.index[-1] + pd.Timedelta(days=1),
+                periods=7
+            )
+            recent.index.name = 'Date'
+            
+            # Color code based on trend
+            def highlight_trend(s):
+                trend = np.gradient(s.values)
+                colors = ['background-color: #90EE90' if t > 0 else 'background-color: #FFB6C1' 
+                         for t in trend]
+                return colors
+            
+            st.dataframe(
+                recent.style.apply(highlight_trend).format("{:.2f}"),
+                width='stretch'
+            )
+            
+            # Backtesting Section
+            st.markdown("---")
+            st.header("📊 Backtesting Report")
+            
+            # Run backtest button
+            if st.button("🚀 Run Transformer Backtest", key="transformer_backtest"):
+                with st.spinner("Running Transformer backtest..."):
+                    transformer_trade_log, transformer_metrics, transformer_balance = backtest_model_with_metrics(
+                        st.session_state.transformer_model,
+                        st.session_state.transformer_test_df,
+                        7, 7,
+                        initial_balance,
+                        take_profit / 100.0,
+                        stop_loss / 100.0,
+                        position_size_fraction / 100.0,
+                        risk_free_rate / 100.0,
+                        preprocessor=st.session_state.transformer_preprocessor
                     )
-                    recent.index.name = 'Date'
                     
-                    # Color code based on trend
-                    def highlight_trend(s):
-                        trend = np.gradient(s.values)
-                        colors = ['background-color: #90EE90' if t > 0 else 'background-color: #FFB6C1' 
-                                 for t in trend]
-                        return colors
-                    
-                    st.dataframe(
-                        recent.style.apply(highlight_trend).format("{:.2f}"),
-                        use_container_width=True
-                    )
-            
-            # Backtest with Transformer
-            st.subheader("💹 Transformer Model Backtesting")
-            
-            col1, col2 = st.columns(2)
-            with col1:
-                if st.button("Run Transformer Backtest", key="transformer_backtest"):
-                    with st.spinner("Running Transformer backtest..."):
-                        transformer_trade_log, transformer_metrics, transformer_balance = backtest_model_with_metrics(
-                            st.session_state.transformer_model,
-                            st.session_state.transformer_test_df,
-                            7, 7,
-                            initial_balance,
-                            take_profit / 100.0,
-                            stop_loss / 100.0,
-                            position_size_fraction / 100.0,
-                            risk_free_rate / 100.0,
-                            preprocessor=st.session_state.transformer_preprocessor
-                        )
-                        
-                        st.session_state.transformer_trade_log = transformer_trade_log
-                        st.session_state.transformer_metrics = transformer_metrics
-                        st.session_state.transformer_balance = transformer_balance
-            
-            with col2:
-                if st.button("Generate Report", key="transformer_report"):
-                    if 'transformer_metrics' in st.session_state:
-                        report = generate_transformer_report(
-                            st.session_state.transformer_model,
-                            st.session_state.transformer_test_df,
-                            st.session_state.transformer_predictions_df,
-                            st.session_state.transformer_metrics,
-                            save_path='output_plots/transformer_report.txt'
-                        )
-                        st.text_area("Transformer Model Report", report, height=300)
-                        st.success("Report saved to output_plots/transformer_report.txt")
+                    st.session_state.transformer_trade_log = transformer_trade_log
+                    st.session_state.transformer_metrics = transformer_metrics
+                    st.session_state.transformer_balance = transformer_balance
+                    st.success("✅ Backtest completed successfully!")
             
             # Display backtest results if available
             if 'transformer_metrics' in st.session_state:
-                st.markdown("---")
-                col1, col2 = st.columns([0.6, 0.4])
+                # Trade Log
+                st.subheader("📋 Trade Log")
+                display_trade_log(st.session_state.transformer_trade_log)
+                
+                # Performance Metrics and Equity Curve side by side
+                col1, col2 = st.columns([0.4, 0.6])
                 
                 with col1:
-                    st.subheader("Transformer Trade Performance")
-                    display_trade_log(st.session_state.transformer_trade_log)
+                    st.subheader("📈 Performance Metrics")
+                    display_performance_metrics(st.session_state.transformer_metrics)
                 
                 with col2:
-                    st.subheader("Transformer Metrics")
-                    display_performance_metrics(st.session_state.transformer_metrics)
-                    
-                    # Add comparison with baseline
-                    st.markdown("### 📊 Model Comparison")
-                    if 'transformer_metrics' in st.session_state:
-                        baseline_return = performance_metrics.get('Total Return (%)', 0) if 'performance_metrics' in locals() else 0
-                        transformer_return = st.session_state.transformer_metrics.get('Total Return (%)', 0)
-                        
-                        comparison_df = pd.DataFrame({
-                            'Metric': ['Total Return (%)', 'Sharpe Ratio', 'Win Rate (%)'],
-                            'CNN Model': [
-                                performance_metrics.get('Total Return (%)', 0) if 'performance_metrics' in locals() else 0,
-                                performance_metrics.get('Sharpe Ratio', 0) if 'performance_metrics' in locals() else 0,
-                                performance_metrics.get('Win Rate (%)', 0) if 'performance_metrics' in locals() else 0
-                            ],
-                            'Transformer': [
-                                st.session_state.transformer_metrics.get('Total Return (%)', 0),
-                                st.session_state.transformer_metrics.get('Sharpe Ratio', 0),
-                                st.session_state.transformer_metrics.get('Win Rate (%)', 0)
-                            ]
-                        })
-                        
-                        st.dataframe(
-                            comparison_df.style.highlight_max(axis=1, subset=['CNN Model', 'Transformer']),
-                            use_container_width=True,
-                            hide_index=True
-                        )
+                    st.subheader("💰 Equity Curve")
+                    plot_equity_curve(st.session_state.transformer_balance)
+                
+                # Trades Visualization
+                st.subheader("🎯 Trades Visualization")
+                plot_model_results_with_trades(
+                    st.session_state.transformer_test_df, 
+                    st.session_state.transformer_predictions_df, 
+                    st.session_state.transformer_trade_log, 
+                    st.session_state.transformer_preprocessor
+                )
+            else:
+                st.info("👆 Click 'Run Transformer Backtest' to generate the backtesting report")
             
             # Save Transformer predictions to MongoDB
             if st.button("💾 Save Transformer Predictions", key="save_transformer_preds"):

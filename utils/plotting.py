@@ -29,9 +29,6 @@ def plot_recent_predictions(recent_preds_orig, trend, test_df_orig, preprocessor
     collection = setup_mongodb_connection()
     stored_predictions = get_stored_predictions(collection)[:-1]
 
-    print(stored_predictions)
-
-    print(f"Stored Prediction 1: {stored_predictions[0]}")
     # Only plot the last 5 stored predictions
     if stored_predictions:
         last_5_predictions = stored_predictions[:5]
@@ -83,12 +80,12 @@ def display_performance_metrics(performance_metrics):
     metrics_df.reset_index(inplace=True)
     metrics_df.rename(columns={'index': 'Metric'}, inplace=True)
 
-    st.dataframe(metrics_df, use_container_width=True, hide_index=True)
+    st.dataframe(metrics_df, width='stretch', hide_index=True)
 
 def display_trade_log(trade_log_df):
     trade_log_df['Entry Date'] = trade_log_df['Entry Date'].dt.date
     trade_log_df['Exit Date'] = trade_log_df['Exit Date'].dt.date
-    st.dataframe(trade_log_df.round(2), use_container_width=True)
+    st.dataframe(trade_log_df.round(2), width='stretch')
 
 def plot_ensemble_predictions(ensemble_predictions, test_df, preprocessor):
     plt.figure(figsize=(12, 6))
@@ -211,7 +208,7 @@ def plot_ensemble_statistics(ensemble_predictions, test_df, preprocessor):
     }
     
     stats_df = pd.DataFrame(stats_dict)
-    st.dataframe(stats_df, use_container_width=True, hide_index=True)
+    st.dataframe(stats_df, width='stretch', hide_index=True)
 
 def plot_ensemble_predictions_realtime(predictions_list, test_df, preprocessor, container):
     with container:
