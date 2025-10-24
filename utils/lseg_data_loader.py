@@ -216,13 +216,122 @@ class LSEGDataLoader:
             else:
                 return pd.DataFrame(columns=['Date', 'Spot Value'])
 
+    def load_external_variables(self, start_date: str = None, end_date: str = None, count: int = 5000):
+        """
+        Load external market variables that influence carbon prices
+        
+        Returns:
+            DataFrame with Date index and columns: Brent_Oil, TTF_Gas, EU_Inflation
+        """
+        try:
+            # 1. Brent Crude Oil (daily)
+            st.info("📊 Loading Brent Crude Oil prices...")
+            brent_crude = self.ld.get_history(
+                universe="LCOc1",
+                interval="1D",
+                count=count
+            ).reset_index()
+            
+            # 2. TTF Gas (daily)
+            st.info("📊 Loading TTF Natural Gas prices...")
+            ttf_gas = self.ld.get_history(
+                universe="TFMBMc1",
+                interval="1D",
+                count=count
+            ).reset_index()
+            
+            # 3. EU Inflation (monthly - will need to forward fill)
+            st.info("📊 Loading EU Inflation data...")
+            eu_inflation = self.ld.get_history(
+                universe="EUHICY=ECI",
+                interval="1M",
+                count=count
+            ).reset_index()
+            
+            # Process and clean the data
+            external_df = self._process_external_variables(
+                brent_crude, ttf_gas, eu_inflation
+            )
+            
+            st.success(f"✅ Loaded {len(external_df.columns)-1} external variables")
+            return external_df
+            
+        except Exception as e:
+            st.error(f"❌ Failed to load external variables: {str(e)}")
+            st.warning("⚠️ Continuing without external variables...")
+            return pd.DataFrame()
+    
+    def _process_external_variables(self, brent_df, ttf_df, inflation_df):
+        """
+        Process and align external variables to daily frequency
+        
+        Args:
+            brent_df: Brent crude oil DataFrame
+            ttf_df: TTF gas DataFrame  
+            inflation_df: EU inflation DataFrame (monthly)
+            
+        Returns:
+            Cleaned and aligned DataFrame
+        """
+        # Extract prices using TRDPRC_1 for commodities, VALUE for inflation
+        brent_clean = brent_df[['Date', 'TRDPRC_1']].copy()
+        brent_clean.columns = ['Date', 'Brent_Oil']
+        brent_clean['Date'] = pd.to_datetime(brent_clean['Date'])
+        
+        ttf_clean = ttf_df[['Date', 'TRDPRC_1']].copy()
+        ttf_clean.columns = ['Date', 'TTF_Gas']
+        ttf_clean['Date'] = pd.to_datetime(ttf_clean['Date'])
+        
+        inflation_clean = inflation_df[['Date', 'VALUE']].copy()
+        inflation_clean.columns = ['Date', 'EU_Inflation']
+        inflation_clean['Date'] = pd.to_datetime(inflation_clean['Date'])
+        
+        # Merge daily data (Brent + TTF)
+        external_df = pd.merge(
+            brent_clean, 
+            ttf_clean, 
+            on='Date', 
+            how='outer'
+        ).sort_values('Date')
+        
+        # Add monthly inflation - forward fill to daily
+        external_df = pd.merge(
+            external_df,
+            inflation_clean,
+            on='Date',
+            how='left'
+        ).sort_values('Date')
+        
+        # Forward fill inflation (monthly → daily)
+        external_df['EU_Inflation'] = external_df['EU_Inflation'].fillna(method='ffill')
+        
+        # Forward fill any remaining missing values in commodities
+        external_df['Brent_Oil'] = external_df['Brent_Oil'].fillna(method='ffill').fillna(method='bfill')
+        external_df['TTF_Gas'] = external_df['TTF_Gas'].fillna(method='ffill').fillna(method='bfill')
+        
+        # Log statistics
+        st.info(f"""
+        External Variables Summary:
+        - Date range: {external_df['Date'].min().date()} to {external_df['Date'].max().date()}
+        - Total days: {len(external_df)}
+        - Brent Oil: ${external_df['Brent_Oil'].mean():.2f} ± {external_df['Brent_Oil'].std():.2f}
+        - TTF Gas: €{external_df['TTF_Gas'].mean():.2f} ± {external_df['TTF_Gas'].std():.2f}
+        - EU Inflation: {external_df['EU_Inflation'].mean():.2f}% ± {external_df['EU_Inflation'].std():.2f}%
+        - Missing values: Brent={external_df['Brent_Oil'].isnull().sum()}, TTF={external_df['TTF_Gas'].isnull().sum()}, Inflation={external_df['EU_Inflation'].isnull().sum()}
+        """)
+        
+        return external_df
+
     @st.cache_data(ttl=3600)  # Cache for 1 hour
     def load_auction_data(_self, start_date: Optional[str] = None, 
                          end_date: Optional[str] = None, 
-                         count: int = 5000) -> pd.DataFrame:
+                         count: int = 5000,
+                         include_external: bool = True) -> pd.DataFrame:
         """
         Load auction data from LSEG, preprocess, and engineer features.
         Automatically updates spot price data if needed.
+        
+        NEW: Optionally includes external variables (Brent, Gas, Inflation)
         """
         try:
             # 1. Load data from different exchanges
@@ -267,7 +376,30 @@ class LSEGDataLoader:
             auction_df['Premium/discount-settle'] = auction_df['Auction Spot Diff'] / auction_df['Spot Value']
             auction_df = auction_df.rename(columns={'Auction Price': 'Auc Price'})
             
-            # 7. Apply the final feature engineering step
+            # 7. NEW: Add external variables if requested
+            if include_external:
+                st.info("🌍 Loading external market variables...")
+                external_df = _self.load_external_variables(count=count)
+                
+                if not external_df.empty:
+                    # Merge external variables with auction data
+                    auction_df = auction_df.merge(
+                        external_df,
+                        on='Date',
+                        how='left'
+                    )
+                    
+                    # Forward fill any missing external data
+                    external_cols = ['Brent_Oil', 'TTF_Gas', 'EU_Inflation']
+                    for col in external_cols:
+                        if col in auction_df.columns:
+                            auction_df[col] = auction_df[col].fillna(method='ffill').fillna(method='bfill')
+                    
+                    st.success(f"✅ Added external variables: {', '.join(external_cols)}")
+                else:
+                    st.warning("⚠️ Proceeding without external variables")
+            
+            # 8. Apply the final feature engineering step
             from utils.dataset import DataPreprocessor
             final_df = DataPreprocessor.engineer_auction_features(auction_df)
 

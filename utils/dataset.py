@@ -521,17 +521,23 @@ class DataPreprocessor:
     def engineer_auction_features(df):
         """
         Engineer features for auction data.
+        NOW: Also includes external variable features if present
         
         Parameters:
         df (pd.DataFrame): Input DataFrame with columns ['Date', 'Auc Price', 'Median Price', 
                         'Cover Ratio', 'Spot Value', 'Auction Spot Diff', 'Median Spot Diff', 
                         'Premium/discount-settle']
+                        Optionally: 'Brent_Oil', 'TTF_Gas', 'EU_Inflation'
         
         Returns:
         pd.DataFrame: DataFrame with original and engineered features
         """
         # Create a copy of the input DataFrame to avoid modifying the original
         merged_df = df.copy()
+        
+        # NEW: Add external features if variables are present
+        from utils.external_features import engineer_external_features
+        merged_df = engineer_external_features(merged_df)
         
 
         """

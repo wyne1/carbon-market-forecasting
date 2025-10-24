@@ -39,12 +39,15 @@ collection = db['recent_predictions']
 
 # NEW: Modified load function for your app.py
 @st.cache_data
-def load_and_preprocess_data_smart():
+def load_and_preprocess_data_smart(include_external: bool = True):
     """
-    REPLACE your current load_and_preprocess_data function with this
+    Load data with optional external variables
+    
+    Args:
+        include_external: Whether to include Brent Oil, TTF Gas, EU Inflation
     """
     auction_loader = LSEGDataLoader()
-    df = auction_loader.load_auction_data()
+    df = auction_loader.load_auction_data(include_external=include_external)
     return df
 
 
@@ -55,9 +58,20 @@ def prepare_data_and_train_model(merged_df):
     print(f"Using the following columns: {merged_df.columns}")
     train_df, test_df, val_df, preprocessor = prepare_data(merged_df)
     
+    # Drop NaN columns
     train_df = train_df.dropna(axis=1)
     test_df = test_df.dropna(axis=1)
     val_df = val_df.dropna(axis=1)
+    
+    # CRITICAL: Ensure all data is numeric (float32)
+    print(f"\nConverting to float32...")
+    train_df = train_df.astype(np.float32)
+    test_df = test_df.astype(np.float32)
+    val_df = val_df.astype(np.float32)
+    
+    print(f"Train dtypes: {train_df.dtypes.unique()}")
+    print(f"Test dtypes: {test_df.dtypes.unique()}")
+    print(f"Val dtypes: {val_df.dtypes.unique()}")
 
     num_features = len(test_df.columns)
     OUT_STEPS = 7
@@ -78,9 +92,16 @@ def prepare_and_train_transformer(merged_df, max_epochs=50):
     print(f"Training Transformer with columns: {merged_df.columns}")
     train_df, test_df, val_df, preprocessor = prepare_data(merged_df)
     
+    # Drop NaN columns
     train_df = train_df.dropna(axis=1)
     test_df = test_df.dropna(axis=1)
     val_df = val_df.dropna(axis=1)
+    
+    # CRITICAL: Ensure all data is numeric (float32)
+    print(f"\nConverting to float32...")
+    train_df = train_df.astype(np.float32)
+    test_df = test_df.astype(np.float32)
+    val_df = val_df.astype(np.float32)
 
     num_features = len(test_df.columns)
     OUT_STEPS = 7
@@ -126,8 +147,33 @@ def main():
 
     st.title("🚀 Carbon Market Forecasting Dashboard")
 
+    # NEW: Sidebar option for external variables
+    st.sidebar.header("🌍 Data Configuration")
+    use_external_vars = st.sidebar.checkbox(
+        "Include External Variables",
+        value=True,
+        help="Add Brent Oil, TTF Gas, and EU Inflation data"
+    )
+    
+    if use_external_vars:
+        st.sidebar.info("""
+        **External Variables:**
+        - 🛢️ Brent Crude Oil (LCOc1)
+        - ⛽ TTF Natural Gas (TFMBMc1)
+        - 📊 EU Inflation (EUHICY=ECI)
+        """)
+
     # Load data (this will be cached)
-    merged_df = load_and_preprocess_data_smart()
+    merged_df = load_and_preprocess_data_smart(include_external=use_external_vars)
+    
+    # Show dataset info
+    if use_external_vars:
+        external_cols = [col for col in merged_df.columns 
+                        if any(x in col for x in ['Brent', 'TTF', 'Inflation'])]
+        if external_cols:
+            st.sidebar.success(f"✅ Loaded {len(external_cols)} external variables")
+        else:
+            st.sidebar.warning("⚠️ External variables not loaded (check logs)")
     
     # Train baseline model (this will be cached)
     model, preprocessor, test_df, predictions_df, recent_preds, trend = prepare_data_and_train_model(merged_df)
@@ -142,6 +188,7 @@ def main():
 
     with tab1:
         # Sidebar Inputs
+        st.sidebar.markdown("---")
         st.sidebar.header("Backtesting Parameters")
         initial_balance = st.sidebar.number_input("Initial Balance ($)", value=10000.0, min_value=0.0, step=1000.0)
         take_profit = st.sidebar.slider("Take Profit (%)", min_value=0.0, max_value=100.0, value=4.0, step=0.1)

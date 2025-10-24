@@ -28,14 +28,15 @@ collection = db['recent_predictions']
 
 # NEW: Modified load function for your app.py
 @st.cache_data
-def load_and_preprocess_data_smart():
+def load_and_preprocess_data_smart(include_external: bool = True):
     """
-    REPLACE your current load_and_preprocess_data function with this
-    """
-
-    auction_loader = LSEGDataLoader()
-    df = auction_loader.load_auction_data()
+    Load data with optional external variables
     
+    Args:
+        include_external: Whether to include Brent Oil, TTF Gas, EU Inflation
+    """
+    auction_loader = LSEGDataLoader()
+    df = auction_loader.load_auction_data(include_external=include_external)
     return df
 
 @st.cache_resource
@@ -44,7 +45,7 @@ def prepare_data_and_train_model(merged_df):
     # for col in merged_df.columns:
     #     print(f"{col}: {merged_df[col].dtype}")
 
-    merged_df = merged_df.drop(['Auction_Type', 'Day of Week'], axis=1)
+    merged_df = merged_df.drop(['Auction_Type', 'Day of Week'], axis=1, errors='ignore')
     
 
     print(f"Using the following columns: {merged_df.columns}")
@@ -53,6 +54,12 @@ def prepare_data_and_train_model(merged_df):
     train_df = train_df.dropna(axis=1)
     test_df = test_df.dropna(axis=1)
     val_df = val_df.dropna(axis=1)
+    
+    # CRITICAL: Ensure all data is numeric (float32)
+    print(f"\nConverting to float32...")
+    train_df = train_df.astype(np.float32)
+    test_df = test_df.astype(np.float32)
+    val_df = val_df.astype(np.float32)
 
     num_features = len(test_df.columns)
     OUT_STEPS = 7
@@ -83,8 +90,33 @@ def main():
 
     st.title("Trading Strategy Backtesting Dashboard")
 
+    # NEW: Sidebar option for external variables
+    st.sidebar.header("🌍 Data Configuration")
+    use_external_vars = st.sidebar.checkbox(
+        "Include External Variables",
+        value=True,
+        help="Add Brent Oil, TTF Gas, and EU Inflation data"
+    )
+    
+    if use_external_vars:
+        st.sidebar.info("""
+        **External Variables:**
+        - 🛢️ Brent Crude Oil (LCOc1)
+        - ⛽ TTF Natural Gas (TFMBMc1)
+        - 📊 EU Inflation (EUHICY=ECI)
+        """)
+
     # Load data (this will be cached)
-    merged_df = load_and_preprocess_data_smart()
+    merged_df = load_and_preprocess_data_smart(include_external=use_external_vars)
+    
+    # Show dataset info
+    if use_external_vars:
+        external_cols = [col for col in merged_df.columns 
+                        if any(x in col for x in ['Brent', 'TTF', 'Inflation'])]
+        if external_cols:
+            st.sidebar.success(f"✅ Loaded {len(external_cols)} external variables")
+        else:
+            st.sidebar.warning("⚠️ External variables not loaded (check logs)")
     # merged_df.to_csv('testing_merged.csv')
     
     # Train model (this will be cached unless the cache was just cleared)
@@ -95,6 +127,7 @@ def main():
 
     with tab1:
         # Sidebar Inputs
+        st.sidebar.markdown("---")
         st.sidebar.header("Backtesting Parameters")
         initial_balance = st.sidebar.number_input("Initial Balance ($)", value=10000.0, min_value=0.0, step=1000.0)
         take_profit = st.sidebar.slider("Take Profit (%)", min_value=0.0, max_value=100.0, value=4.0, step=0.1)

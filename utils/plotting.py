@@ -454,3 +454,90 @@ def plot_drawdown_curve(balance_history_df):
     ax.set_ylabel('Drawdown (%)')
     ax.grid(True)
     st.pyplot(fig)
+
+def plot_external_variables_correlation(df, preprocessor):
+    """
+    Plot correlation between external variables and carbon prices
+    """
+    external_cols = ['Brent_Oil', 'TTF_Gas', 'EU_Inflation']
+    
+    # Check if external variables exist
+    if not all(col in df.columns for col in external_cols):
+        st.info("⚠️ External variables not included in this dataset")
+        return
+    
+    from utils.data_processing import reverse_normalize
+    
+    # Denormalize for visualization
+    df_denorm = reverse_normalize(
+        df.copy(), 
+        preprocessor.train_mean['Auc Price'], 
+        preprocessor.train_std['Auc Price']
+    )
+    
+    fig, axes = plt.subplots(2, 2, figsize=(14, 10))
+    
+    # Plot 1: Brent Oil vs Carbon Price
+    ax1 = axes[0, 0]
+    ax1_twin = ax1.twinx()
+    ax1.plot(df_denorm.index, df_denorm['Auc Price'], 'b-', label='Carbon Price', alpha=0.7, linewidth=1.5)
+    ax1_twin.plot(df_denorm.index, df_denorm['Brent_Oil'], 'r-', label='Brent Oil', alpha=0.7, linewidth=1.5)
+    ax1.set_xlabel('Date')
+    ax1.set_ylabel('Carbon Price (€/tCO2)', color='b')
+    ax1_twin.set_ylabel('Brent Oil ($/barrel)', color='r')
+    ax1.set_title('Carbon Price vs Brent Oil')
+    ax1.grid(True, alpha=0.3)
+    ax1.tick_params(axis='y', labelcolor='b')
+    ax1_twin.tick_params(axis='y', labelcolor='r')
+    
+    # Plot 2: TTF Gas vs Carbon Price
+    ax2 = axes[0, 1]
+    ax2_twin = ax2.twinx()
+    ax2.plot(df_denorm.index, df_denorm['Auc Price'], 'b-', label='Carbon Price', alpha=0.7, linewidth=1.5)
+    ax2_twin.plot(df_denorm.index, df_denorm['TTF_Gas'], 'g-', label='TTF Gas', alpha=0.7, linewidth=1.5)
+    ax2.set_xlabel('Date')
+    ax2.set_ylabel('Carbon Price (€/tCO2)', color='b')
+    ax2_twin.set_ylabel('TTF Gas (€/MWh)', color='g')
+    ax2.set_title('Carbon Price vs TTF Gas')
+    ax2.grid(True, alpha=0.3)
+    ax2.tick_params(axis='y', labelcolor='b')
+    ax2_twin.tick_params(axis='y', labelcolor='g')
+    
+    # Plot 3: EU Inflation vs Carbon Price
+    ax3 = axes[1, 0]
+    ax3_twin = ax3.twinx()
+    ax3.plot(df_denorm.index, df_denorm['Auc Price'], 'b-', label='Carbon Price', alpha=0.7, linewidth=1.5)
+    ax3_twin.plot(df_denorm.index, df_denorm['EU_Inflation'], color='purple', label='EU Inflation', alpha=0.7, linewidth=1.5)
+    ax3.set_xlabel('Date')
+    ax3.set_ylabel('Carbon Price (€/tCO2)', color='b')
+    ax3_twin.set_ylabel('EU Inflation (%)', color='purple')
+    ax3.set_title('Carbon Price vs EU Inflation')
+    ax3.grid(True, alpha=0.3)
+    ax3.tick_params(axis='y', labelcolor='b')
+    ax3_twin.tick_params(axis='y', labelcolor='purple')
+    
+    # Plot 4: Correlation matrix
+    ax4 = axes[1, 1]
+    corr_cols = ['Auc Price', 'Brent_Oil', 'TTF_Gas', 'EU_Inflation']
+    corr_matrix = df_denorm[corr_cols].corr()
+    
+    im = ax4.imshow(corr_matrix, cmap='coolwarm', vmin=-1, vmax=1, aspect='auto')
+    ax4.set_xticks(range(len(corr_cols)))
+    ax4.set_yticks(range(len(corr_cols)))
+    ax4.set_xticklabels(['Carbon', 'Brent', 'TTF Gas', 'Inflation'], rotation=45, ha='right')
+    ax4.set_yticklabels(['Carbon', 'Brent', 'TTF Gas', 'Inflation'])
+    
+    # Add correlation values
+    for i in range(len(corr_cols)):
+        for j in range(len(corr_cols)):
+            text = ax4.text(j, i, f'{corr_matrix.iloc[i, j]:.2f}',
+                           ha="center", va="center", color="white" if abs(corr_matrix.iloc[i, j]) > 0.5 else "black",
+                           fontsize=10, fontweight='bold')
+    
+    ax4.set_title('Correlation Matrix')
+    cbar = plt.colorbar(im, ax=ax4, fraction=0.046, pad=0.04)
+    cbar.set_label('Correlation Coefficient', rotation=270, labelpad=15)
+    
+    plt.tight_layout()
+    st.pyplot(fig)
+    plt.close()

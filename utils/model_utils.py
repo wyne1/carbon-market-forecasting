@@ -67,13 +67,27 @@ def generate_predictions(model, test_df, input_width, out_steps):
     for idx, i in enumerate(range(input_width, len(test_df) - out_steps + 1, out_steps)):
         try:
             inputs = test_df[i - input_width:i].values
+            # Ensure inputs are float32
+            inputs = inputs.astype(np.float32)
             inputs_reshaped = inputs.reshape((1, input_width, num_features))
-            preds = model.predict(inputs_reshaped)
+            preds = model.predict(inputs_reshaped, verbose=0)
             predictions.append(preds[0])
         except Exception as e:
             print(f"Prediction error at index {i}: {e}")
-            break
+            print(f"Input shape: {inputs.shape}, dtype: {inputs.dtype}")
+            print(f"Expected: (1, {input_width}, {num_features})")
+            # Continue instead of break to see if other predictions work
+            continue
 
+    # Check if we got any predictions
+    if len(predictions) == 0:
+        print("ERROR: No predictions were generated!")
+        print(f"Test df shape: {test_df.shape}")
+        print(f"Test df columns: {test_df.columns.tolist()}")
+        print(f"Test df dtypes: {test_df.dtypes.unique()}")
+        # Return empty DataFrame with correct structure
+        return pd.DataFrame(columns=features)
+    
     predictions = np.concatenate(predictions, axis=0)
     pred_indices = test_df.index[input_width:input_width + len(predictions)]
     predictions_df = pd.DataFrame(predictions, columns=features, index=pred_indices)
@@ -82,18 +96,21 @@ def generate_predictions(model, test_df, input_width, out_steps):
 
 def generate_recent_predictions(model, test_df, input_width, out_steps):
     features = test_df.columns
-    print(f"Features: {features}")
+    print(f"Features: {len(features)} columns")
     
     num_features = len(features)
     print(f"Number of features: {num_features}")
     
     inputs = test_df[-input_width:].values
-    print(f"INPUTS: {inputs}" )
+    # Ensure inputs are float32
+    inputs = inputs.astype(np.float32)
+    print(f"Inputs shape: {inputs.shape}, dtype: {inputs.dtype}")
+    
     inputs_reshaped = inputs.reshape((1, input_width, num_features))
     print(f"Reshaped input shape: {inputs_reshaped.shape}")
     
     print("Making prediction...")
-    preds = model.predict(inputs_reshaped)
+    preds = model.predict(inputs_reshaped, verbose=0)
     
     print("Creating predictions list...")
     predictions = []
