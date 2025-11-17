@@ -34,8 +34,8 @@ def backtest_model(model, test_df, input_width, out_steps, initial_balance, take
     # Generate predictions in steps of 'out_steps'
     for idx, i in enumerate(range(input_width, len(test_df) - out_steps + 1, out_steps)):
         try:
-            inputs = test_df[i - input_width:i].values
-            inputs_reshaped = inputs.reshape((1, input_width, num_features))
+            inputs = test_df[i - input_width:i].values.astype(np.float32)
+            inputs_reshaped = np.array(inputs).reshape((1, input_width, num_features)).astype(np.float32)
             preds = model.predict(inputs_reshaped)
             predictions.append(preds[0])
         except Exception as e:
@@ -171,8 +171,8 @@ def backtest_model_with_metrics(model, test_df, input_width, out_steps, initial_
     # Generate predictions in steps of 'out_steps'
     for idx, i in enumerate(range(input_width, len(test_df) - out_steps + 1, out_steps)):
         try:
-            inputs = test_df[i - input_width:i].values
-            inputs_reshaped = inputs.reshape((1, input_width, num_features))
+            inputs = test_df[i - input_width:i].values.astype(np.float32)
+            inputs_reshaped = np.array(inputs).reshape((1, input_width, num_features)).astype(np.float32)
             preds = model.predict(inputs_reshaped)
             predictions.append(preds[0])
         except Exception as e:

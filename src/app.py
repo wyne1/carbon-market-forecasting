@@ -9,7 +9,7 @@ import tensorflow as tf
 from pathlib import Path
 from pymongo import MongoClient
 from datetime import datetime
-
+import pandas as pd
 from utils.dataset import DataPreprocessor
 from utils.data_processing import prepare_data
 from utils.plotting import (display_performance_metrics, display_trade_log, plot_equity_curve, 
@@ -155,10 +155,13 @@ def main():
         st.header("Stored Predictions")
         with st.spinner("Loading stored predictions..."):
             stored_predictions = get_stored_predictions(collection)
+            stored_predictions = pd.DataFrame(stored_predictions).sort_values(by='date', ascending=False).reset_index(drop=True).to_dict(orient='records')
             if stored_predictions:
                 # Only show the most recent N predictions
-                N = 20  # Change this number as desired
+                N = 100  # Change this number as desired
                 recent_predictions = stored_predictions[-N:] if len(stored_predictions) > N else stored_predictions
+
+                print(recent_predictions[0])
 
                 data = []
                 for pred in recent_predictions:

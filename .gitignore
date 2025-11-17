@@ -52,7 +52,6 @@ data/
 invoices/
 docs/
 models/
-scripts/
 config/
 notebooks/
 .env
@@ -60,3 +59,8 @@ notebooks/
 .env.development.local
 .env.test.local
 .env.production.local
+
+trading-log-analysis/
+tests/
+trading-automation/
+trade_testing/

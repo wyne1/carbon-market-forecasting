@@ -35,6 +35,13 @@ from utils.backtesting import backtest_model_with_metrics
 from utils.smart_preprocessing import SmartAuctionPreprocessor
 from utils.data_processing import reverse_normalize
 from utils.lseg_data_loader import LSEGDataLoader
+import smtplib
+from email.message import EmailMessage
+from dotenv import load_dotenv
+import os
+
+load_dotenv()
+
 # Suppress warnings for cleaner output
 warnings.filterwarnings('ignore')
 tf.get_logger().setLevel('ERROR')
@@ -386,7 +393,7 @@ class AutomatedPipeline:
             timestamp = self.get_current_timestamp().strftime("%Y%m%d_%H%M%S")
             plot_path = self.output_dir / f"trades_visualization_{timestamp}.png"
             # plt.savefig(plot_path, dpi=self.config['dpi'], bbox_inches='tight')
-            plt.show()
+            # plt.show()
             plt.close()
             
             print(f"✅ Trades visualization saved to: {plot_path}")
@@ -635,6 +642,60 @@ class AutomatedPipeline:
         except Exception as e:
             print(f"❌ Error saving ensemble results: {e}")
 
+
+    def send_quote_email(
+        self,
+        recipient_email = "zeerak.wyne@gmail.com",
+        subject="Carbon Market Analysis Report",
+        body=None,
+        attachment_path=None
+    ):
+        msg = EmailMessage()
+        msg["Subject"] = subject
+        msg["From"] = os.getenv("EMAIL_SENDER")
+        msg["To"] = recipient_email
+
+        # Add body (HTML or plain text)
+        if body:
+            if body.strip().startswith("<"):
+                msg.set_content("This is an HTML email. Please view it in an email client that supports HTML.")
+                msg.add_alternative(body, subtype="html")
+            else:
+                msg.set_content(body)
+
+        # Add attachment (PDF or Excel)
+        if attachment_path and os.path.isfile(attachment_path):
+            with open(attachment_path, "rb") as f:
+                file_data = f.read()
+                filename = os.path.basename(attachment_path)
+
+                # Detect file type
+                if filename.endswith(".pdf"):
+                    maintype, subtype = "application", "pdf"
+                elif filename.endswith((".xls", ".xlsx")):
+                    maintype, subtype = "application", "vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                else:
+                    maintype, subtype = "application", "octet-stream"
+
+                msg.add_attachment(file_data, maintype=maintype, subtype=subtype, filename=filename)
+
+        # SMTP Configuration
+        smtp_server = os.getenv("SMTP_SERVER", "smtp.gmail.com")
+        smtp_port = int(os.getenv("SMTP_PORT", 587))
+        smtp_user = os.getenv("SMTP_USER")
+        smtp_pass = os.getenv("SMTP_PASS")
+
+        # Send email
+        with smtplib.SMTP(smtp_server, smtp_port) as server:
+            server.ehlo()
+            server.starttls()
+            server.ehlo()
+            server.login(smtp_user, smtp_pass)
+            server.send_message(msg)
+
+        return "✅ Email sent successfully"
+
+    
     def generate_pdf_report(self, performance_metrics, trade_log_df):
         """
         Generate comprehensive PDF report
@@ -711,7 +772,8 @@ class AutomatedPipeline:
             
             # Step 6: Generate PDF report
             pdf_path = self.generate_pdf_report(performance_metrics, trade_log_df)
-            
+            self.send_quote_email(attachment_path=pdf_path, subject="Carbon Market Analysis Report")
+
             # Step 7: Save to MongoDB (optional)
             # self.save_to_mongodb()
             

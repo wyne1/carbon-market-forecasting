@@ -518,6 +518,124 @@ class DataPreprocessor:
         return df
     
 
+    # def engineer_auction_features(df):
+    #     """
+    #     Engineer features for auction data, including interactions with 
+    #     exogenous macro energy and FX variables relevant to 'Auc Price'.
+        
+    #     Parameters:
+    #         df (pd.DataFrame): Input DataFrame with columns including:
+    #             - 'Date', 'Auc Price', 'Median Price', 'Cover Ratio', 'Spot Value', 
+    #               'Auction Spot Diff', 'Median Spot Diff', 'Premium/discount-settle',
+    #               and the following new features:
+    #             - 'TTF Gas Price', 'Brent Crude Price', 'Coal Futures Price', 'EURUSD Mid Price'
+                  
+    #     Returns:
+    #         pd.DataFrame: DataFrame with original and engineered features.
+    #     """
+    #     merged_df = df.copy()
+    #     merged_df['Date'] = pd.to_datetime(merged_df['Date'])
+        
+    #     # 1. Time-based features
+    #     merged_df['DayOfWeek'] = merged_df['Date'].dt.dayofweek
+    #     merged_df['Month'] = merged_df['Date'].dt.month
+    #     merged_df['Quarter'] = merged_df['Date'].dt.quarter
+
+    #     # 2. Rolling statistics - focus on main auction columns for signal stability
+    #     for column in ['Auc Price', 'Median Price', 'Spot Value']:
+    #         merged_df[f'{column}_7d_MA'] = merged_df[column].rolling(window=7).mean()
+    #         merged_df[f'{column}_30d_MA'] = merged_df[column].rolling(window=30).mean()
+    #         merged_df[f'{column}_7d_EMA'] = merged_df[column].ewm(span=7, adjust=False).mean()
+    #         merged_df[f'{column}_30d_EMA'] = merged_df[column].ewm(span=30, adjust=False).mean()
+        
+    #     # 3. Price change features
+    #     for column in ['Auc Price', 'Median Price']:
+    #         merged_df[f'{column}_pct_change'] = merged_df[column].pct_change()
+    #     merged_df['Spot_Value_ROC'] = merged_df['Spot Value'].pct_change()
+
+    #     # 4. Ratio-based features
+    #     merged_df['Auc_to_Median_Ratio'] = merged_df['Auc Price'] / merged_df['Median Price']
+    #     merged_df['Auc_to_Spot_Ratio'] = merged_df['Auc Price'] / merged_df['Spot Value']
+
+    #     # 5. Volatility indicators
+    #     bb_indicator = BollingerBands(close=merged_df['Auc Price'], window=20, window_dev=2)
+    #     merged_df['BB_high'] = bb_indicator.bollinger_hband()
+    #     merged_df['BB_low'] = bb_indicator.bollinger_lband()
+
+    #     # 6. Trend indicators
+    #     merged_df['SMA_5'] = merged_df['Auc Price'].rolling(window=5).mean()
+    #     merged_df['SMA_20'] = merged_df['Auc Price'].rolling(window=20).mean()
+    #     merged_df['SMA_cross'] = np.where(merged_df['SMA_5'] > merged_df['SMA_20'], 1, 0)
+
+    #     macd = MACD(close=merged_df['Auc Price'])
+    #     merged_df['MACD'] = macd.macd()
+    #     merged_df['MACD_signal'] = macd.macd_signal()
+
+    #     # 7. Seasonal decomposition (optional, does not overload features)
+    #     try:
+    #         decomposition = seasonal_decompose(merged_df['Auc Price'], model='additive', period=30)
+    #         merged_df['Seasonal'] = decomposition.seasonal
+    #         merged_df['Trend'] = decomposition.trend
+    #         merged_df['Residual'] = decomposition.resid
+    #     except Exception:
+    #         print("Warning: Seasonal decomposition failed. Skipping this feature.")
+
+    #     # 8. Lagged features (short and medium horizon)
+    #     for column in ['Auc Price', 'Median Price', 'Cover Ratio', 'Spot Value']:
+    #         merged_df[f'{column}_lag1'] = merged_df[column].shift(1)
+    #         merged_df[f'{column}_lag7'] = merged_df[column].shift(7)
+        
+    #     # --- New exogenous feature interactions ---
+    #     # Focus on physically and financially motivated relationships,
+    #     # but do not overload with all possible combinations.
+
+    #     macro_vars = [
+    #         'TTF Gas Price', 'Brent Crude Price', 'Coal Futures Price', 'EURUSD Mid Price'
+    #     ]
+    #     for var in macro_vars:
+    #         # Multiplicative interaction (relative pricing pressure)
+    #         merged_df[f'Auc_{var}_Interaction'] = merged_df['Auc Price'] * merged_df[var]
+
+    #         # Ratio interaction (pricing relationship, e.g. per-unit cost/hedge/arb)
+    #         merged_df[f'Auc_to_{var}_Ratio'] = merged_df['Auc Price'] / merged_df[var]
+            
+    #         # 7-day rolling correlation (captures shifting short-term relationship, but not lagged)
+    #         merged_df[f'Auc_{var}_7d_corr'] = (
+    #             merged_df['Auc Price'].rolling(7).corr(merged_df[var])
+    #         )
+        
+    #     # Interactions with key energy price trends
+    #     for var in ['TTF Gas Price', 'Brent Crude Price']:
+    #         # Difference (spread) feature: important for fundamental arbitrage
+    #         merged_df[f'Auc_minus_{var}'] = merged_df['Auc Price'] - merged_df[var]
+
+    #     # Interaction of FX (EURUSD) - log return feature to normalize scale and reflect market response
+    #     merged_df['EURUSD_log_return'] = np.log(merged_df['EURUSD Mid Price']).diff()
+    #     merged_df['Auc_Price_fx_return_interaction'] = merged_df['Auc Price'] * merged_df['EURUSD_log_return']
+
+    #     # 9. Main domain interactions (retaining only the important ones)
+    #     merged_df['Cover_Premium_Interaction'] = merged_df['Cover Ratio'] * merged_df['Premium/discount-settle']
+    #     merged_df['Spot_Diff_Interaction'] = merged_df['Auction Spot Diff'] * merged_df['Median Spot Diff']
+
+    #     # 10. Technical indicator
+    #     rsi = RSIIndicator(close=merged_df['Auc Price'], window=14)
+    #     merged_df['RSI'] = rsi.rsi()
+
+    #     # 11. Difference features
+    #     merged_df['Auc_Price_diff1'] = merged_df['Auc Price'].diff()
+    #     merged_df['Auc_Price_diff2'] = merged_df['Auc Price'].diff().diff()
+
+    #     # Minimal additive and squared terms to keep feature count lean
+    #     merged_df['Auc_Median_Sum'] = merged_df['Auc Price'] + merged_df['Median Price']
+    #     merged_df['Auc_Spot_Sum'] = merged_df['Auc Price'] + merged_df['Spot Value']
+    #     merged_df['Auc_Price_Squared'] = merged_df['Auc Price'] ** 2
+
+    #     # Handle NaN values from rolling and shift ops
+    #     merged_df = merged_df.bfill().ffill()
+
+    #     # (No normalization here; assume done later in pipeline)
+    #     return merged_df
+
     def engineer_auction_features(df):
         """
         Engineer features for auction data.
@@ -654,9 +772,6 @@ class DataPreprocessor:
 
         return merged_df
 
-    # Example usage:
-    # engineered_df = engineer_auction_features(original_df)
-    # print(engineered_df.columns)
 
 class Plotting:
     @staticmethod

@@ -68,6 +68,12 @@ def main(date=None):
             for file_path in sorted(output_dir.glob("*")):
                 if file_path.is_file():
                     print(f"   • {file_path.name}")
+
+            # Save predictions to MongoDB (replace if same-day exists)
+            try:
+                pipeline.save_to_mongodb()
+            except Exception as e:
+                print(f"\n⚠️  Warning: Failed to save predictions to MongoDB: {e}")
         else:
             print("\n💥 FAILED! Check error messages above.")
             sys.exit(1)

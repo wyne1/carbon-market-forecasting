@@ -1,9 +1,10 @@
 import os
 import pandas as pd
-import numpy as np
-from typing import Tuple, Dict, Optional
-from datetime import datetime, timedelta
+from typing import Dict, Optional
+from datetime import timedelta
 import streamlit as st
+import lseg.data as ld
+from pathlib import Path
 
 from utils.smart_preprocessing import SmartAuctionPreprocessor
 
@@ -27,7 +28,6 @@ class LSEGDataLoader:
         """Initialize LSEG session"""
         try:
             os.environ["LD_LIB_CONFIG_PATH"] = self.config_path
-            import lseg.data as ld
             self.ld = ld
             
             # Open session
@@ -216,8 +216,7 @@ class LSEGDataLoader:
             else:
                 return pd.DataFrame(columns=['Date', 'Spot Value'])
 
-    @st.cache_data(ttl=3600)  # Cache for 1 hour
-    def load_auction_data(_self, start_date: Optional[str] = None, 
+    def load_auction_data_nb(_self, start_date: Optional[str] = None, 
                          end_date: Optional[str] = None, 
                          count: int = 5000) -> pd.DataFrame:
         """
@@ -245,8 +244,15 @@ class LSEGDataLoader:
                 'MARGIN_RTO': 'Cover Ratio'
             })
 
-            FILE_NAME = "data/latest_auction.xlsx"
-            SPOT_FILE_NAME = "data/historic_spots.xlsx"
+            # Ensure the 'data' directory exists
+            
+
+            DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "data")
+            DATA_DIR = os.path.abspath(DATA_DIR)
+            if not os.path.exists(DATA_DIR):
+                os.makedirs(DATA_DIR, exist_ok=True)
+            FILE_NAME = os.path.join(DATA_DIR, "latest_auction.xlsx")
+            SPOT_FILE_NAME = os.path.join(DATA_DIR, "historic_spots.xlsx")
             
             # Save auction data
             merged_df.to_excel(FILE_NAME)
@@ -266,6 +272,177 @@ class LSEGDataLoader:
 
             auction_df['Premium/discount-settle'] = auction_df['Auction Spot Diff'] / auction_df['Spot Value']
             auction_df = auction_df.rename(columns={'Auction Price': 'Auc Price'})
+            
+            # CRUDE + TTF + Brent PRICES ADD 
+            
+            # 7. Apply the final feature engineering step
+            from utils.dataset import DataPreprocessor
+            final_df = DataPreprocessor.engineer_auction_features(auction_df.copy())
+
+            return final_df, auction_df
+            
+        except Exception as e:
+            st.error(f"Failed to load auction data: {str(e)}")
+            raise
+
+    def load_ttf_gas_data(_self, start_date: Optional[str] = None, 
+                         end_date: Optional[str] = None, 
+                         count: int = 5000) -> pd.DataFrame:
+        """
+        Load TTF gas data from LSEG
+        """
+        try:
+            params = {"interval": "1D", "count": count}
+            if start_date and end_date:
+                params.update({"start": start_date, "end": end_date})
+                params.pop("count", None)
+            ttf_gas = _self.ld.get_history(universe="TFMBMc1", **params).reset_index()
+            ttf_gas = ttf_gas.rename(columns={
+                'TRDPRC_1': 'TTF Gas Price',
+                'MID_PRICE': 'TTF Median Price',
+                'MARGIN_RTO': 'TTF Cover Ratio'
+            })
+            return ttf_gas[~ttf_gas['TTF Gas Price'].isna()][['Date', 'TTF Gas Price']]
+        except Exception as e:
+            st.error(f"Failed to load TTF gas data: {str(e)}")
+            raise
+
+    def load_brent_crude_price_data(_self, start_date: Optional[str] = None, 
+                         end_date: Optional[str] = None, 
+                         count: int = 5000) -> pd.DataFrame:
+        """
+        Load Brent crude price data from LSEG
+        """
+        try:
+            params = {"interval": "1D", "count": count}
+            if start_date and end_date:
+                params.update({"start": start_date, "end": end_date})
+                params.pop("count", None)
+            brent_crude_price = _self.ld.get_history(universe="LCOc1", **params).reset_index()
+            brent_crude_price = brent_crude_price.rename(columns={
+                'TRDPRC_1': 'Brent Crude Price',
+                'MID_PRICE': 'Brent Crude Median Price',
+                'MARGIN_RTO': 'Brent Crude Cover Ratio'
+            })
+            return brent_crude_price[~brent_crude_price['Brent Crude Price'].isna()][['Date', 'Brent Crude Price']]
+        except Exception as e:
+            st.error(f"Failed to load Brent crude price data: {str(e)}")
+            raise
+    
+    def load_coal_futures_data(_self, start_date: Optional[str] = None, 
+                         end_date: Optional[str] = None, 
+                         count: int = 5000) -> pd.DataFrame:
+        """
+        Load coal futures data from LSEG
+        """
+        try:
+            params = {"interval": "1D", "count": count}
+            if start_date and end_date:
+                params.update({"start": start_date, "end": end_date})
+                params.pop("count", None)
+            coal_futures = _self.ld.get_history(universe=".CSI930886", **params).reset_index()
+            coal_futures = coal_futures.rename(columns={
+                'TRDPRC_1': 'Coal Futures Price',
+                'MID_PRICE': 'Coal Futures Median Price',
+                'MARGIN_RTO': 'Coal Futures Cover Ratio'
+            })
+            return coal_futures[~coal_futures['Coal Futures Price'].isna()][['Date', 'Coal Futures Price']]
+        except Exception as e:
+            st.error(f"Failed to load coal futures data: {str(e)}")
+            raise
+
+    def load_eur_usd_data(_self, start_date: Optional[str] = None, 
+                         end_date: Optional[str] = None, 
+                         count: int = 5000) -> pd.DataFrame:
+        """
+        Load EUR/USD data from LSEG
+        """
+        try:
+            params = {"interval": "1D", "count": count}
+            if start_date and end_date:
+                params.update({"start": start_date, "end": end_date})
+                params.pop("count", None)
+            eur_usd = _self.ld.get_history(universe="EUR=", **params).reset_index()
+            eur_usd = eur_usd.rename(columns={
+                'MID_PRICE': 'EURUSD Mid Price',
+                'BID': 'EURUSD Bid Price',
+                'ASK': 'EURUSD Ask Price'
+            })
+            return eur_usd[~eur_usd['EURUSD Mid Price'].isna()][['Date', 'EURUSD Mid Price']]
+        except Exception as e:
+            st.error(f"Failed to load EUR/USD data: {str(e)}")
+            raise
+
+    @st.cache_data(ttl=3600)  # Cache for 1 hour
+    def load_auction_data(_self, start_date: Optional[str] = None, 
+                         end_date: Optional[str] = None, 
+                         count: int = 5000) -> pd.DataFrame:
+        """
+        Load auction data from LSEG, preprocess, and engineer features.
+        Automatically updates spot price data if needed.
+        """
+        try:
+            # 1. Load data from different exchanges
+            params = {"interval": "1D", "count": count}
+            if start_date and end_date:
+                params.update({"start": start_date, "end": end_date})
+                params.pop("count", None)
+
+            print(f"PARAMS: {params}")
+            df_eu = _self.ld.get_history(universe="EEX-EUA4EU-AUC", **params).reset_index()
+            df_de = _self.ld.get_history(universe="EEX-EUA4DE-AUC", **params).reset_index()
+            df_pl = _self.ld.get_history(universe="EEX-EUA4PL-AUC", **params).reset_index()
+
+            # 2. Merge and clean the raw data
+            merged_df = _self._merge_timeseries_concat(df_eu, df_de, df_pl)
+
+            # 3. Rename columns to match the legacy format expected by the preprocessor
+            merged_df = merged_df.rename(columns={
+                'TRDPRC_1': 'Auction Price',
+                'MID_PRICE': 'Median Price',
+                'MARGIN_RTO': 'Cover Ratio'
+            })
+
+            DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "data")
+            DATA_DIR = os.path.abspath(DATA_DIR)
+            if not os.path.exists(DATA_DIR):
+                os.makedirs(DATA_DIR, exist_ok=True)
+            FILE_NAME = os.path.join(DATA_DIR, "latest_auction.xlsx")
+            SPOT_FILE_NAME = os.path.join(DATA_DIR, "historic_spots.xlsx")
+            
+            # Save auction data
+            merged_df.to_excel(FILE_NAME)
+            merged_df = pd.read_excel(FILE_NAME).set_index('Unnamed: 0')
+            
+            # 4. Check and update spot data if necessary
+            spot_df = _self._check_and_update_spot_data(merged_df.reset_index(), SPOT_FILE_NAME)
+            print(f"SPOT DATAFRAME: {spot_df.tail(10)}")
+            # 5. Apply the same smart preprocessing as the original pipeline
+            
+            # 7. Merge with TTF gas data and Brent crude price data
+            ttf_gas = _self.load_ttf_gas_data(start_date, end_date, count)
+            brent_crude_price = _self.load_brent_crude_price_data(start_date, end_date, count)
+            coal_futures = _self.load_coal_futures_data(start_date, end_date, count)
+            eur_usd = _self.load_eur_usd_data(start_date, end_date, count)
+            # merged_df = merged_df.merge(ttf_gas, on='Date', how='left')
+            # merged_df = merged_df.merge(brent_crude_price, on='Date', how='left')
+            # merged_df = merged_df.merge(coal_futures, on='Date', how='left')
+            # merged_df = merged_df.merge(eur_usd, on='Date', how='left')
+            # merged_df.dropna(axis=0, inplace=True)
+
+
+            preprocessor = SmartAuctionPreprocessor()
+            auction_df = preprocessor.preprocess_auction_data(merged_df)
+
+            # 6. Merge with spot data and calculate differences
+            auction_df = auction_df.merge(spot_df, on='Date', how='left')
+            auction_df['Auction Spot Diff'] = auction_df['Auction Price'] - auction_df['Spot Value']
+            auction_df['Median Spot Diff'] = auction_df['Median Price'] - auction_df['Spot Value']
+
+            auction_df['Premium/discount-settle'] = auction_df['Auction Spot Diff'] / auction_df['Spot Value']
+            auction_df = auction_df.rename(columns={'Auction Price': 'Auc Price'})
+
+            
             
             # 7. Apply the final feature engineering step
             from utils.dataset import DataPreprocessor

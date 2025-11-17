@@ -2,7 +2,7 @@ from pymongo import MongoClient
 import numpy as np
 
 def get_stored_predictions(collection):
-    stored_predictions = list(collection.find().sort("date", -1).limit(10))
+    stored_predictions = list(collection.find().sort("date", -1).limit(100))
     return stored_predictions
 
 def setup_mongodb_connection():

@@ -31,7 +31,7 @@ def plot_recent_predictions(recent_preds_orig, trend, test_df_orig, preprocessor
 
     # Only plot the last 5 stored predictions
     if stored_predictions:
-        last_5_predictions = stored_predictions[:5]
+        last_5_predictions = stored_predictions[:10]
         for i, pred in enumerate(last_5_predictions):
             pred_dates = [pred['date']] + [pred['date'] + pd.Timedelta(days=j+1) for j in range(len(pred['predictions'])-1)]
             color = 'lightgreen' if pred['trade_direction'] == 'Buy' else 'lightcoral'

@@ -66,8 +66,8 @@ def generate_predictions(model, test_df, input_width, out_steps):
 
     for idx, i in enumerate(range(input_width, len(test_df) - out_steps + 1, out_steps)):
         try:
-            inputs = test_df[i - input_width:i].values
-            inputs_reshaped = inputs.reshape((1, input_width, num_features))
+            inputs = test_df[i - input_width:i].values.astype(np.float32)
+            inputs_reshaped = np.array(inputs).reshape((1, input_width, num_features)).astype(np.float32)
             preds = model.predict(inputs_reshaped)
             predictions.append(preds[0])
         except Exception as e:
@@ -87,9 +87,9 @@ def generate_recent_predictions(model, test_df, input_width, out_steps):
     num_features = len(features)
     print(f"Number of features: {num_features}")
     
-    inputs = test_df[-input_width:].values
+    inputs = test_df[-input_width:].values.astype(np.float32)
     print(f"INPUTS: {inputs}" )
-    inputs_reshaped = inputs.reshape((1, input_width, num_features))
+    inputs_reshaped = np.array(inputs).reshape((1, input_width, num_features)).astype(np.float32)
     print(f"Reshaped input shape: {inputs_reshaped.shape}")
     
     print("Making prediction...")
